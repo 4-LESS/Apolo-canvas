@@ -1,0 +1,9 @@
+{
+  "id": "apolo-canvas",
+  "name": "Apolo Canvas",
+  "version": "0.5.4",
+  "minAppVersion": "1.5.0",
+  "description": "Hybrid Markdown + digital ink for academic note-taking. Insert handwritten ink blocks with stylus support directly into your notes.",
+  "author": "4-LESS",
+  "isDesktopOnly": false
+}

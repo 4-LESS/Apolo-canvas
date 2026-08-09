@@ -1,0 +1,22 @@
+node_modules/
+dist/
+main.js
+*.js.map
+.DS_Store
+Thumbs.db
+data.json
+.gemini/
+node_modules/
+.env
+.vscode/
+*.log
+*.tgz
+coverage/
+*.local
+.idea/
+npm-debug.log*
+package-lock.json
+build/
+# Obsidian plugin build outputs
+main.ts
+esbuild.config.mjs

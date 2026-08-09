@@ -1,0 +1,32 @@
+{
+  "name": "apolo-canvas",
+  "version": "0.5.4",
+  "description": "Handwriting and digital ink plugin for Obsidian — hybrid Markdown + stylus note-taking for students",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "test": "vitest run",
+    "build": "node esbuild.config.mjs production"
+  },
+  "keywords": [
+    "obsidian",
+    "plugin",
+    "handwriting",
+    "stylus",
+    "ink",
+    "notes",
+    "academic"
+  ],
+  "author": "4-LESS",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "esbuild": "^0.20.0",
+    "obsidian": "^1.5.0",
+    "typescript": "^5.3.0",
+    "vitest": "^4.1.8"
+  },
+  "dependencies": {
+    "perfect-freehand": "^1.2.2"
+  }
+}

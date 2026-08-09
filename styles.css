@@ -1,0 +1,2516 @@
+/* ═══════════════════════════════════════════════════════════
+   Obsidian Ink — Consolidated Stylesheet (v0.3)
+   ═══════════════════════════════════════════════════════════ */
+
+:root {
+    /* Z-index layers */
+    --ink-layer-overlay: 5;
+    --ink-layer-chrome: 99;
+    --ink-layer-popover: 100;
+    --ink-layer-menu: 1001;
+    --layer-status: var(--ink-layer-chrome);   /* alias kept — already referenced elsewhere */
+    --layer-popover: var(--ink-layer-popover); /* was used in 5+ places but never defined — see Step 1.2 */
+
+    /* Radius scale — chained off Obsidian theme definitions */
+    --ink-radius-sm: var(--radius-s, 4px);
+    --ink-radius-md: var(--radius-m, 8px);
+    --ink-radius-lg: var(--radius-l, 14px);
+    --ink-radius-pill: var(--radius-xl, 20px);
+    --ink-radius-full: 50%;
+
+    /* Elevation scale (replaces ad-hoc rgba shadows) */
+    --ink-shadow-1: 0 1px 3px rgba(0, 0, 0, 0.06);
+    --ink-shadow-2: 0 2px 8px rgba(0, 0, 0, 0.12);
+    --ink-shadow-3: 0 4px 16px rgba(0, 0, 0, 0.15);
+    --ink-shadow-4: 0 6px 20px rgba(0, 0, 0, 0.2);
+    
+    /* Topmost floating transient overlay shadow */
+    --ink-shadow-5: 0 12px 28px rgba(0, 0, 0, 0.25);
+
+    /* Glass surface recipe */
+    --ink-surface-bg: var(--background-primary);
+    --ink-surface-opacity: 0.92;
+    --ink-surface-blur: 8px;
+    --ink-surface-border: 1px solid var(--background-modifier-border);
+
+    /* Motion */
+    --ink-transition-fast: 100ms ease;
+    --ink-transition-base: 150ms ease;
+    --ink-transition-slow: 200ms ease;
+}
+
+/* ── Shared Glass Surfaces ── */
+:is(.ink-color-popover, .ink-shape-picker, .ink-config-popover, .ink-popover, .ink-tool-pill, .ink-style-panel) {
+    background: var(--ink-surface-bg);
+    border: var(--ink-surface-border);
+    box-shadow: var(--ink-shadow-3);
+    backdrop-filter: blur(var(--ink-surface-blur));
+}
+
+/* Canonical Active State Pattern */
+:is(.ink-tool-btn, .ink-shape-picker-btn, .ink-shape-grid-btn, .ink-grid-btn, .ink-readonly-btn, .ink-config-btn, .ink-popover-snap-btn, .ink-fill-type-btn, .ink-modal-tab-btn).is-active {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border-color: var(--interactive-accent);
+}
+
+/* Local Matrix/Row Exceptions: Shift to a solid accent-tinted canvas footprint */
+:is(.ink-palette-row, .ink-manager-palette-row).is-active {
+    /* Modern theme engine target */
+    background: rgba(var(--interactive-accent-rgb), 0.12);
+    /* Robust fallback using color-mix for themes lacking the RGB triplet */
+    background: color-mix(in srgb, var(--interactive-accent) 12%, transparent);
+    border-color: var(--interactive-accent);
+}
+
+/* Explicit Hierarchical Deviation: Retain subtle tint for background config rules only */
+.ink-config-bg-btn.is-active {
+    background: var(--background-modifier-hover);
+    color: var(--interactive-accent);
+}
+
+/* ── Block Wrapper ── */
+.ink-block-wrapper {
+    position: relative;
+    margin: 12px 0;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-m, 8px);
+    background: var(--background-primary);
+    overflow: hidden;
+    box-shadow: var(--ink-shadow-1);
+    transition: box-shadow 0.2s ease;
+}
+
+.ink-block-wrapper:focus-within {
+    box-shadow: 0 0 0 2px var(--interactive-accent), var(--ink-shadow-2);
+    border-color: var(--interactive-accent);
+}
+
+
+
+/* ── Secondary Color & Size Popover ── */
+.ink-color-popover {
+    position: absolute;
+    width: 160px;
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    z-index: 100;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.ink-slider-row,
+.ink-popover-slider-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 6px;
+    width: 100%;
+}
+
+.ink-popover-slider-header,
+.ink-style-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.ink-slider-input-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.ink-slider-input-row input {
+    flex: 1;
+    min-width: 0;
+}
+
+.ink-popover-size-val {
+    font-variant-numeric: tabular-nums;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-normal);
+    min-width: 36px;
+    text-align: right;
+    flex-shrink: 0;
+}
+
+:is(.ink-popover-slider, .ink-menu-width-slider, .ink-smoothness-slider, .ink-thickness-slider, .ink-popover-opacity-slider) {
+    height: 4px;
+    background: var(--background-modifier-border);
+    border-radius: 2px;
+    -webkit-appearance: none;
+    appearance: none;
+    outline: none;
+    cursor: pointer;
+}
+
+:is(.ink-popover-slider, .ink-menu-width-slider, .ink-smoothness-slider, .ink-thickness-slider, .ink-popover-opacity-slider)::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--interactive-accent);
+    cursor: pointer;
+}
+
+.ink-popover-slider {
+    width: 100%;
+}
+
+.ink-popover-colors {
+    display: flex;
+    justify-content: space-between;
+    gap: 4px;
+}
+
+.ink-popover-swatch {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: transform 100ms ease;
+}
+
+.ink-popover-swatch:hover {
+    transform: scale(1.15);
+}
+
+.ink-popover-swatch.is-active {
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 1px var(--background-primary);
+}
+
+/* ── Canvas Container & Canvas ── */
+.ink-canvas-container {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    background: var(--background-primary-alt, #f0f1f3);
+    min-height: 200px;
+    z-index: 1;
+}
+
+.ink-overlay {
+    position: absolute;
+    z-index: 5 !important;
+}
+
+.ink-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: crosshair;
+}
+
+/* ── Drag Resize Handle ── */
+.ink-resize-handle {
+    position: absolute;
+    bottom: 2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 32px;
+    height: 12px;
+    cursor: ns-resize;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 99;
+}
+
+.ink-resize-handle::after {
+    content: '';
+    width: 32px;
+    height: 4px;
+    border-radius: 2px;
+    background-color: var(--text-muted);
+    opacity: 0.4;
+    transition: opacity 100ms ease;
+}
+
+.ink-resize-handle:hover::after {
+    opacity: 0.8;
+}
+
+/* ── Save Status Indicator ── */
+.ink-save-status-indicator {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    z-index: var(--layer-status);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.ink-save-status-indicator svg {
+    width: 14px;
+    height: 14px;
+    stroke: #ffffff !important;
+    fill: none;
+    transition: stroke 0.2s ease;
+}
+
+.ink-save-status-indicator.is-saving svg {
+    stroke: var(--text-accent) !important;
+}
+
+/* ── Add Block Entry Point (FAB) ── */
+.ink-add-block-btn {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%) translateY(12px);
+    opacity: 0;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    color: var(--text-muted);
+    background: var(--background-primary);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 50%;
+    box-shadow: var(--ink-shadow-2);
+    cursor: pointer;
+    z-index: 99;
+    transition: transform 0.3s ease, opacity 0.3s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.ink-block-wrapper.is-active .ink-add-block-btn {
+    transform: translateX(-50%) translateY(0);
+    opacity: 0.92;
+    pointer-events: auto;
+}
+
+.ink-add-block-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+.ink-add-block-btn:hover {
+    color: var(--text-normal);
+    background: var(--background-modifier-hover);
+}
+
+/* ── Context Menus ── */
+.ink-paste-menu,
+.ink-context-menu {
+    display: none;
+    position: absolute;
+    z-index: 1001;
+    flex-direction: row;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 8px;
+    box-shadow: var(--ink-shadow-3);
+    overflow: hidden;
+    gap: 0;
+    max-width: calc(100% - 16px);
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.ink-selection-menu {
+    display: none;
+    position: absolute;
+    z-index: 1001;
+    flex-direction: row;
+    align-items: center;
+    background: rgba(var(--mono-rgb-100, 255, 255, 255), 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 20px;
+    box-shadow: var(--ink-shadow-5);
+    padding: 4px 8px;
+    gap: 4px;
+    max-width: calc(100% - 16px);
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.theme-dark .ink-selection-menu {
+    background: rgba(30, 30, 30, 0.8);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.ink-context-menu.is-visible {
+    display: flex;
+}
+
+.ink-menu-item,
+.ink-context-item {
+    padding: 6px 12px;
+    font-size: 13px;
+    font-family: var(--font-interface);
+    color: var(--text-normal);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    border-radius: 12px;
+    transition: background 100ms ease, color 100ms ease;
+}
+
+.ink-menu-item:hover,
+.ink-context-item:hover {
+    background: var(--background-modifier-hover);
+}
+
+.ink-menu-item:disabled,
+.ink-menu-item--disabled {
+    color: var(--text-faint);
+    cursor: default;
+    pointer-events: none;
+}
+
+.ink-context-item:active {
+    background: var(--background-modifier-hover);
+}
+
+.ink-context-item.is-hidden {
+    display: none;
+}
+
+.ink-menu-separator {
+    width: 1px;
+    height: 16px;
+    background: var(--background-modifier-border);
+    margin: 0 4px;
+    flex-shrink: 0;
+}
+
+.ink-menu-colors,
+.ink-menu-widths,
+.ink-menu-patterns {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.ink-menu-swatch {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    transition: transform 100ms ease;
+}
+
+.ink-menu-swatch:hover {
+    transform: scale(1.2);
+}
+
+.ink-menu-swatch.is-active {
+    box-shadow: 0 0 0 2px var(--interactive-accent);
+}
+
+.ink-menu-width-slider {
+    width: 60px;
+}
+
+.ink-menu-width-val {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-weight: bold;
+    min-width: 28px;
+    text-align: right;
+}
+
+.ink-menu-width-btn,
+.ink-menu-pattern-btn,
+.ink-menu-back-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 24px;
+    min-width: 24px;
+    border-radius: 12px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 0 4px;
+    transition: background 100ms ease, color 100ms ease;
+}
+
+.ink-menu-width-btn:hover,
+.ink-menu-pattern-btn:hover,
+.ink-menu-back-btn:hover {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
+.ink-menu-pattern-btn.is-active {
+    background: var(--background-modifier-hover);
+    color: var(--interactive-accent);
+}
+
+.ink-menu-pattern-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* ── Full-Page View ── */
+.ink-full-view {
+    padding: 0;
+}
+
+.ink-full-wrapper {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    position: relative;
+}
+
+.ink-canvas-full {
+    flex: 1;
+    min-height: 0;
+}
+
+/* ── Error State ── */
+.ink-error {
+    padding: 16px;
+    color: var(--text-error);
+    font-size: 13px;
+    text-align: center;
+    background: var(--background-modifier-error);
+    border-radius: var(--radius-s);
+    margin: 8px;
+}
+
+/* ── Shape Picker Pill ── */
+.ink-shape-picker {
+    position: absolute;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    opacity: 0.95;
+    border-radius: 20px;
+    padding: 4px 8px;
+    gap: 4px;
+    z-index: 100;
+    user-select: none;
+    -webkit-user-select: none;
+    animation: fadeSlideIn 0.2s ease-out;
+}
+
+@keyframes fadeSlideIn {
+    from {
+        opacity: 0;
+        transform: translate(-8px, -50%);
+    }
+    to {
+        opacity: 0.95;
+        transform: translate(0, -50%);
+    }
+}
+
+.ink-shape-picker-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: background 150ms ease, color 150ms ease;
+}
+
+.ink-shape-picker-btn:hover {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
+
+
+.ink-shape-picker-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* ── Line Style Selector in Popover ── */
+.ink-popover-style-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.ink-popover-style-header {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.ink-popover-styles {
+    display: flex;
+    gap: 6px;
+}
+
+.ink-popover-style-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 28px;
+    border-radius: 6px;
+    border: 1px solid var(--background-modifier-border);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.ink-popover-style-btn:hover {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
+.ink-popover-style-btn.is-active {
+    border-color: var(--interactive-accent);
+    background: var(--background-modifier-hover);
+    color: var(--interactive-accent);
+}
+
+.ink-popover-style-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* ── Grid/Snap Settings in Popover ── */
+.ink-popover-grid-separator {
+    height: 1px;
+    background: var(--background-modifier-border);
+    margin: 4px 0;
+}
+
+.ink-popover-snap-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.ink-popover-snap-btn {
+    padding: 3px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--background-modifier-border);
+    background: transparent;
+    color: var(--text-normal);
+    cursor: pointer;
+    font-size: 11px;
+    transition: all 0.15s ease;
+}
+
+.ink-popover-snap-btn:hover {
+    background: var(--background-modifier-hover);
+}
+
+.ink-popover-snap-btn.is-active {
+    border-color: var(--interactive-accent);
+}
+
+
+/* ── Floating Chrome Button Group ── */
+:is(.ink-grid-btn, .ink-readonly-btn, .ink-config-btn) {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: var(--ink-surface-bg);
+    opacity: var(--ink-surface-opacity);
+    backdrop-filter: blur(var(--ink-surface-blur));
+    border: var(--ink-surface-border);
+    border-radius: var(--ink-radius-full);
+    box-shadow: var(--ink-shadow-2);
+    color: var(--text-muted);
+    cursor: pointer;
+    z-index: var(--ink-layer-chrome);
+    transition: all 0.15s ease;
+}
+
+:is(.ink-grid-btn, .ink-readonly-btn, .ink-config-btn):hover {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
+
+
+:is(.ink-grid-btn, .ink-readonly-btn, .ink-config-btn) svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Position overrides */
+.ink-grid-btn { bottom: 12px; left: 12px; }
+.ink-readonly-btn { top: 12px; right: 50px; }
+.ink-config-btn { top: 12px; right: 12px; }
+
+.ink-config-popover {
+    position: absolute;
+    right: 12px;
+    top: 48px;
+    display: flex;
+    flex-direction: column;
+    opacity: 0.95;
+    border-radius: 8px;
+    padding: 12px;
+    gap: 10px;
+    z-index: 100;
+    width: 180px;
+    font-size: 11px;
+    color: var(--text-muted);
+    user-select: none;
+    -webkit-user-select: none;
+    animation: fadeSlideDown 0.15s ease-out;
+}
+
+@keyframes fadeSlideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 0.95;
+        transform: translateY(0);
+    }
+}
+
+.ink-config-section-title {
+    color: var(--text-normal);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--background-modifier-border);
+    padding-bottom: 4px;
+}
+
+.ink-config-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+}
+
+.ink-config-row.flex-column {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+}
+
+.ink-config-select {
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-primary);
+    color: var(--text-normal);
+    cursor: pointer;
+    max-width: 90px;
+}
+
+.ink-config-select:focus {
+    outline: none;
+    border-color: var(--interactive-accent);
+}
+
+.ink-config-toggle-btn {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-primary-alt);
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.ink-popover-separator {
+    border: 0;
+    height: 1px;
+    background: var(--background-modifier-border);
+    margin: 4px 0;
+}
+
+.ink-config-row.is-disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.ink-config-row.is-disabled * {
+    pointer-events: none;
+}
+
+/* ── Hide native Obsidian code block elements ── */
+.cm-embed-block:has(.block-language-ink) .edit-block-button,
+.code-block-container:has(.block-language-ink) .code-block-flair,
+.code-block-container:has(.block-language-ink) .edit-block-button,
+div:has(> .block-language-ink) > .edit-block-button,
+div:has(> .block-language-ink) > .code-block-flair {
+    display: none !important;
+}
+
+/* ── Destructive configuration button ── */
+.ink-config-delete-btn {
+    width: 100%;
+    font-size: 11px;
+    padding: 6px;
+    border-radius: 4px;
+    border: 1px solid var(--text-error);
+    background: transparent;
+    color: var(--text-error);
+    cursor: pointer;
+    font-weight: bold;
+    text-align: center;
+    transition: all 0.15s ease;
+}
+
+.ink-config-delete-btn:hover {
+    background: var(--text-error);
+    color: var(--text-on-accent);
+}
+
+.ink-config-remove-btn {
+    width: 100%;
+    font-size: 11px;
+    padding: 6px;
+    border-radius: 4px;
+    border: 1px solid var(--background-modifier-border);
+    background: transparent;
+    color: var(--text-normal);
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s ease;
+    font-weight: 500;
+}
+
+.ink-config-remove-btn:hover {
+    background: var(--background-modifier-hover);
+}
+
+.ink-config-bg-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 4px;
+    width: 100%;
+}
+
+.ink-config-bg-btn {
+    flex: 1;
+    font-size: 10px;
+    padding: 6px 0;
+    border-radius: 4px;
+    border: 1px solid var(--background-modifier-border);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s ease;
+    font-weight: 500;
+}
+
+.ink-config-bg-btn:hover {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
+.ink-config-bg-btn.is-active {
+    border-color: var(--interactive-accent);
+    font-weight: bold;
+}
+
+/* ── Selection Menu Two-Row Layout & Swatch overrides ── */
+.ink-menu-styles-col {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.ink-menu-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.ink-menu-row-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    min-width: 50px;
+}
+
+.ink-popover-swatch.swatch-transparent,
+.ink-menu-swatch.swatch-transparent {
+    background: #ffffff !important;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--background-modifier-border);
+}
+.ink-popover-swatch.swatch-transparent::after,
+.ink-menu-swatch.swatch-transparent::after {
+    content: '';
+    position: absolute;
+    width: 140%;
+    height: 1.5px;
+    background: #ff4d4d;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+/* ── Unified Shape Popover Grid ── */
+.ink-shape-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(28px, 1fr));
+    gap: 8px;
+    margin-bottom: 8px;
+    width: 100%;
+}
+
+.ink-shape-grid-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: background 150ms ease, color 150ms ease;
+}
+
+.ink-shape-grid-btn:hover {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
+
+
+.ink-shape-grid-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* ── Read-Only State Hiding Rules ── */
+.is-readonly .ink-global-toolbar {
+    display: none !important;
+}
+
+.is-readonly .ink-grid-btn {
+    display: none !important;
+}
+
+/* ── Global Ink Toolbar Floating Layout ── */
+.ink-global-toolbar {
+    position: absolute;
+    left: var(--ink-sidebar-offset, 12px);
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: var(--layer-popover);
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    pointer-events: none; /* Allows cursor pass-through to text editor */
+    transition: opacity 200ms ease, transform 200ms ease;
+}
+
+.ink-global-toolbar.is-hidden {
+    opacity: 0;
+    transform: translateY(-50%) scale(0.95);
+    pointer-events: none;
+}
+
+.ink-global-toolbar.ink-sidebar-overlay-open {
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+}
+
+/* Re-enable interactions exclusively for toolbar panels */
+.ink-global-toolbar .ink-tool-pill {
+    pointer-events: all;
+}
+
+/* Idle State - low opacity, but remains interactive to receive focus clicks */
+.ink-global-toolbar.is-idle .ink-tool-pill {
+    opacity: 0.4;
+    pointer-events: all;
+}
+
+.ink-tool-pill {
+    display:          flex;
+    flex-direction:   column;
+    align-items:      center;
+    gap:              8px;          /* Increased padding/gap between tools */
+    padding:          12px 6px;     /* Enhanced breathing room inside the pill */
+    border-radius:    24px;
+    box-shadow:       var(--ink-shadow-4);
+}
+
+.ink-tool-btn {
+    display:          flex;
+    align-items:      center;
+    justify-content:  center;
+    width:            36px;
+    height:           36px;
+    border-radius:    50%;          /* Enforces smooth circular hover and active regions */
+    border:           none !important;
+    background:       transparent !important; /* Forces removal of the legacy unselected grey boxes */
+    box-shadow:       none !important;
+    color:            var(--icon-color, var(--text-muted));
+    cursor:           pointer;
+    position:         relative;
+    transition:       background-color 100ms ease, color 100ms ease;
+}
+
+.ink-tool-btn:hover {
+    background:       var(--background-modifier-hover) !important;
+}
+
+.ink-tool-btn.is-active {
+    background:       var(--interactive-accent) !important; /* Clean colored circle for the active tool */
+    color:            var(--text-on-accent) !important;
+}
+
+.ink-tool-btn:disabled {
+    opacity: 0.35;
+    pointer-events: none;
+}
+
+.ink-tool-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+.ink-separator {
+    width: 24px;
+    height: 1px;
+    background: var(--background-modifier-border);
+    margin: 4px 0;
+    flex-shrink: 0;
+}
+
+.ink-style-panel {
+    position: absolute;
+    z-index: calc(var(--layer-popover) + 20);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 12px;
+    width: 190px !important;
+    min-width: 190px !important;
+    max-width: 200px !important;
+    border-radius: 14px;
+    background: var(--ink-surface-bg, var(--background-primary)) !important;
+    border: var(--ink-surface-border, 1px solid var(--background-modifier-border)) !important;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25) !important;
+    backdrop-filter: blur(8px) !important;
+    color: var(--text-normal) !important;
+    transition: opacity 150ms ease, transform 150ms ease;
+    pointer-events: all !important;
+    box-sizing: border-box !important;
+}
+
+.ink-style-panel.is-hidden {
+    display: none !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+.ink-style-header {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+}
+
+.ink-style-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-top: 4px;
+    margin-bottom: 2px;
+}
+
+.ink-style-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.ink-style-swatch {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: transform 100ms ease, border-color 100ms ease;
+    box-shadow: var(--ink-shadow-1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.ink-style-swatch:hover {
+    transform: scale(1.15);
+}
+
+.ink-style-swatch.is-active {
+    border-color: var(--interactive-accent) !important;
+    box-shadow: 0 0 0 1px var(--background-primary);
+}
+
+/* Saved Swatches Slots */
+.saved-swatch {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+}
+
+.saved-swatch.is-empty {
+    border: 2px dashed var(--background-modifier-border);
+    color: var(--text-muted);
+    background: transparent !important;
+}
+
+.saved-swatch.is-empty:hover {
+    border-color: var(--text-muted);
+}
+
+/* Hex Color Input */
+.hex-input-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 4px;
+}
+
+.ink-continuous-spectrum {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    cursor: pointer;
+    background: none;
+    flex-shrink: 0;
+}
+
+.ink-continuous-spectrum::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+
+.ink-continuous-spectrum::-webkit-color-swatch {
+    border: none;
+    border-radius: 5px;
+}
+
+.ink-hex-input {
+    flex: 1;
+    min-width: 0;
+    width: 100%;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-primary-alt);
+    color: var(--text-normal);
+    font-family: var(--font-monospace);
+    font-size: 12px;
+    outline: none;
+    transition: border-color 100ms ease;
+    text-transform: uppercase;
+}
+
+.ink-hex-input:focus {
+    border-color: var(--interactive-accent);
+}
+
+.ink-hex-input.is-invalid {
+    border-color: var(--text-error) !important;
+    background: rgba(var(--text-error-rgb, 255, 77, 77), 0.05);
+}
+
+.ink-smoothness-slider,
+.ink-thickness-slider {
+    width: 100%;
+}
+
+.ink-smoothness-slider::-webkit-slider-thumb,
+.ink-thickness-slider::-webkit-slider-thumb {
+    width: 14px;
+    height: 14px;
+    transition: transform 100ms ease;
+}
+
+.ink-smoothness-slider::-webkit-slider-thumb:hover,
+.ink-thickness-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+
+/* Pattern Selectors */
+.pattern-row {
+    gap: 12px;
+}
+
+.pattern-btn {
+    border-radius: 50% !important;
+}
+
+/* Shape Fill row & buttons */
+.fill-type-row {
+    gap: 8px;
+}
+
+.ink-fill-type-btn {
+    flex: 1;
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--background-modifier-border);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    text-align: center;
+    transition: all 100ms ease;
+}
+
+.ink-fill-type-btn:hover {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
+.ink-fill-type-btn.is-active {
+    border-color: var(--interactive-accent);
+    font-weight: 600;
+}
+
+/* Color Slot Stack & Individual Slots */
+.ink-color-slot-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    margin: 4px 0;
+}
+
+.ink-color-slot {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid var(--background-modifier-border);
+    cursor: pointer;
+    padding: 0;
+    transition: transform 100ms ease, border-color 100ms ease, box-shadow 100ms ease;
+    box-shadow: var(--ink-shadow-1);
+}
+
+.ink-color-slot:hover {
+    transform: scale(1.15);
+}
+
+.ink-color-slot.is-selected {
+    border-color: var(--background-primary) !important;
+    box-shadow: 0 0 0 2px var(--interactive-accent);
+}
+
+/* Pre-rendered Popover System */
+.ink-popover {
+    position: absolute;
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: calc(var(--layer-popover, 30) + 100);
+    width: 200px;
+    height: fit-content;
+    max-height: calc(100% - 24px);
+    box-sizing: border-box;
+    overflow: auto;
+    align-self: flex-start;
+    pointer-events: all;
+    transition: opacity 150ms ease, transform 150ms ease;
+}
+
+.ink-popover.is-hidden {
+    opacity: 0;
+    transform: translateX(-8px);
+    pointer-events: none;
+}
+
+/* Palette Matrix Overlay styling */
+.ink-palette-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.ink-palette-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: background-color 100ms ease, border-color 100ms ease;
+}
+
+.ink-palette-row:hover {
+    background-color: var(--background-modifier-hover);
+}
+
+
+
+.ink-palette-name-input {
+    width: 80px;
+    border: none !important;
+    background: transparent !important;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-normal);
+    padding: 0 !important;
+    margin: 0 !important;
+    height: auto !important;
+    box-shadow: none !important;
+}
+
+.ink-palette-name-input:focus {
+    border-bottom: 1px solid var(--interactive-accent) !important;
+    border-radius: 0 !important;
+}
+
+.ink-palette-colors-preview {
+    display: flex;
+    gap: 3px;
+    pointer-events: none;
+}
+
+.ink-palette-color-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 1px solid var(--background-modifier-border);
+}
+
+.ink-palette-add-row {
+    margin-top: 6px;
+    padding: 6px;
+    border-radius: 6px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--interactive-accent);
+    cursor: pointer;
+    border: 1px dashed var(--interactive-accent);
+    transition: background-color 100ms ease;
+}
+
+.ink-palette-add-row:hover {
+    background-color: var(--background-modifier-hover);
+}
+
+/* ── Tier 2 Pre-Rendered Option Panels & Eraser Popover Styles ── */
+
+.ink-pen-options-panel,
+.ink-shape-options-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+}
+
+.ink-pen-options-panel.is-hidden,
+.ink-shape-options-panel.is-hidden {
+    display: none !important;
+}
+
+.ink-style-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2px;
+}
+
+.ink-slider-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 8px;
+    width: 100%;
+}
+
+
+
+
+
+.shape-grid-btn {
+    border-radius: 8px !important;
+    padding: 8px !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--background-primary-alt);
+    border: 1px solid var(--background-modifier-border);
+    cursor: pointer;
+    transition: background-color 100ms ease, border-color 100ms ease;
+}
+
+.shape-grid-btn:hover {
+    background: var(--background-modifier-hover);
+}
+
+.shape-grid-btn.is-active {
+    background: var(--interactive-accent) !important;
+    color: var(--text-on-accent) !important;
+    border-color: var(--interactive-accent) !important;
+}
+
+.option-switch-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 6px 0;
+    width: 100%;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+.option-switch-row label {
+    cursor: pointer;
+}
+
+.ink-option-checkbox {
+    cursor: pointer;
+    width: 16px;
+    height: 16px;
+    accent-color: var(--interactive-accent);
+}
+
+.ink-eraser-options-popover {
+    width: 220px;
+    position: absolute;
+    z-index: calc(var(--layer-popover, 30) + 100);
+    background: var(--background-primary);
+}
+
+.ink-recent-colors-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+/* Circle controls: force the border box to stay 1:1 in mobile WebViews. */
+.ink-tool-btn {
+    --ink-circle-size: 36px;
+}
+
+.ink-color-slot {
+    --ink-circle-size: 24px;
+}
+
+.ink-palette-color-dot {
+    --ink-circle-size: 12px;
+}
+
+.ink-popover-swatch {
+    --ink-circle-size: 20px;
+}
+
+.ink-menu-swatch {
+    --ink-circle-size: 16px;
+}
+
+.ink-style-swatch {
+    --ink-circle-size: 24px;
+}
+
+.saved-swatch {
+    --ink-circle-size: 28px;
+}
+
+.ink-shape-picker-btn {
+    --ink-circle-size: 32px;
+}
+
+.ink-shape-grid-btn {
+    --ink-circle-size: 28px;
+}
+
+.shape-grid-btn {
+    --ink-circle-size: 36px;
+}
+
+.ink-palette-color-circle {
+    --ink-circle-size: 24px;
+}
+
+.ink-profile-pill {
+    --ink-circle-size: 32px;
+}
+
+:is(.ink-tool-btn, .ink-color-slot, .ink-palette-color-dot, .ink-popover-swatch, .ink-menu-swatch, .ink-style-swatch, .ink-shape-picker-btn, .ink-shape-grid-btn, .shape-grid-btn, .ink-palette-color-circle, .saved-swatch, .ink-profile-pill) {
+    box-sizing: border-box !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: var(--ink-circle-size) !important;
+    height: var(--ink-circle-size) !important;
+    inline-size: var(--ink-circle-size) !important;
+    block-size: var(--ink-circle-size) !important;
+    min-width: var(--ink-circle-size) !important;
+    min-height: var(--ink-circle-size) !important;
+    min-inline-size: var(--ink-circle-size) !important;
+    min-block-size: var(--ink-circle-size) !important;
+    max-width: var(--ink-circle-size) !important;
+    max-height: var(--ink-circle-size) !important;
+    max-inline-size: var(--ink-circle-size) !important;
+    max-block-size: var(--ink-circle-size) !important;
+    flex-shrink: 0 !important;
+    flex-grow: 0 !important;
+    flex-basis: var(--ink-circle-size) !important;
+    padding: 0 !important;
+    aspect-ratio: 1 / 1 !important;
+    border-radius: 50% !important;
+}
+
+/* Fix Missing SVGs: Force visibility box and inheritance colors */
+.ink-pattern-toggle svg, 
+.ink-pattern-btn svg {
+    width: 24px !important;
+    height: 12px !important;
+    display: inline-block;
+    stroke: var(--icon-color) !important;
+    stroke-width: 2px;
+    fill: none;
+}
+
+/* Highlight Pattern Toggle when popover is open */
+.ink-tool-btn.is-active-popover {
+    background: var(--background-modifier-hover) !important;
+    color: var(--interactive-accent) !important;
+    border: 1px solid var(--interactive-accent) !important;
+}
+
+/* Milestone 5: Per-Canvas Actions and Header Controls */
+:is(.ink-fullscreen-toggle-btn, .ink-canvas-actions-btn) {
+    position: absolute;
+    top: 10px;
+    z-index: calc(var(--layer-popover) - 10);
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    color: var(--text-normal);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--ink-shadow-2);
+    transition: background-color 100ms ease, color 100ms ease;
+}
+
+:is(.ink-fullscreen-toggle-btn, .ink-canvas-actions-btn):hover {
+    background: var(--background-modifier-hover);
+    color: var(--interactive-accent);
+}
+
+.ink-fullscreen-toggle-btn {
+    left: 10px;
+}
+
+.ink-canvas-actions-btn {
+    right: 10px;
+}
+
+.ink-actions-dropdown {
+    position: absolute !important;
+    top: 40px !important;
+    right: 12px !important;
+    z-index: var(--layer-popover);
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    box-shadow: var(--ink-shadow-3);
+    padding: 6px 0;
+    min-width: 150px;
+    display: flex;
+    flex-direction: column;
+}
+
+.ink-dropdown-item {
+    padding: 8px 12px;
+    font-size: 13px;
+    color: var(--text-normal);
+    cursor: pointer;
+    transition: background-color 100ms ease;
+    display: flex;
+    align-items: center;
+}
+
+.ink-dropdown-item:hover {
+    background: var(--background-modifier-hover);
+}
+
+.ink-dropdown-item.ink-danger {
+    color: var(--text-error);
+}
+
+.ink-dropdown-item.ink-danger:hover {
+    background: var(--background-modifier-error-hover, rgba(255, 0, 0, 0.08));
+}
+
+.ink-dropdown-divider {
+    margin: 4px 0;
+    border: none;
+    border-top: 1px solid var(--background-modifier-border);
+}
+
+/* Modal configuration sheet styling */
+.ink-config-sheet-modal {
+    padding: 10px 20px;
+}
+
+.ink-modal-setting-row {
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.ink-modal-setting-row.flex-column {
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.ink-modal-select {
+    padding: 6px 10px;
+    border-radius: 4px;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    color: var(--text-normal);
+    min-width: 120px;
+}
+
+.ink-theme-options-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+    width: 100%;
+}
+
+.ink-theme-option-btn {
+    padding: 6px 12px;
+    border-radius: 4px;
+    background: var(--background-primary-alt);
+    border: 1px solid var(--background-modifier-border);
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 100ms ease;
+}
+
+.ink-theme-option-btn:hover {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
+.ink-theme-option-btn.is-active {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border-color: var(--interactive-accent);
+}
+
+.ink-modal-slider {
+    width: 100%;
+    margin-top: 8px;
+    accent-color: var(--interactive-accent);
+}
+
+/* Swatch Carousel styling */
+.ink-swatch-carousel-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.ink-swatch-carousel-wrapper.is-vertical {
+    flex-direction: column;
+    gap: 4px;
+}
+
+.ink-swatch-carousel-wrapper.is-horizontal {
+    flex-direction: row;
+    gap: 4px;
+}
+
+.ink-swatch-dots-strip {
+    display: flex;
+    gap: 6px;
+}
+
+.ink-swatch-carousel-wrapper.is-vertical .ink-swatch-dots-strip {
+    flex-direction: column;
+}
+
+.ink-swatch-carousel-wrapper.is-horizontal .ink-swatch-dots-strip {
+    flex-direction: row;
+}
+
+.ink-swatch-nav-arrow {
+    background: none;
+    border: none;
+    padding: 2px;
+    cursor: pointer;
+    color: var(--text-muted);
+    opacity: 0.3;
+    transition: opacity 100ms ease, transform 100ms ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ink-swatch-nav-arrow:hover {
+    opacity: 0.8;
+}
+
+.ink-swatch-nav-arrow:active {
+    transform: scale(0.9);
+}
+
+/* Carousel Mini size overrides */
+.ink-swatch-carousel-wrapper.is-mini .ink-color-slot {
+    --ink-circle-size: 18px;
+    border-width: 1px;
+}
+
+.ink-swatch-carousel-wrapper.is-mini {
+    margin: 8px 0;
+    gap: 8px;
+}
+
+.ink-swatch-carousel-wrapper.is-mini .ink-swatch-nav-arrow svg {
+    width: 10px;
+    height: 10px;
+}
+
+.ink-color-slot {
+    pointer-events: auto !important;
+}
+
+/* ColorPickerPopover Overhaul & Headers */
+.ink-popover-header {
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-top: 4px;
+    margin-bottom: 2px;
+    user-select: none;
+    letter-spacing: 0.5px;
+}
+
+.ink-color-picker-popover hr {
+    border: none;
+    border-top: 1px solid var(--background-modifier-border);
+    width: 100%;
+    margin: 4px 0;
+    opacity: 0.6;
+}
+
+.ink-popover-spectrum {
+    width: 100%;
+    height: 32px;
+    border: 1px solid var(--background-modifier-border);
+    padding: 0;
+    cursor: pointer;
+    background: transparent;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+.ink-popover-opacity-slider {
+    flex-grow: 1;
+}
+
+.ink-swatch-settings-bar {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    margin-top: 4px;
+}
+
+.ink-swatch-settings-gear {
+    background: none;
+    border: none;
+    padding: 4px 8px;
+    color: var(--text-muted);
+    font-size: 11px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: opacity 100ms ease, color 100ms ease;
+    opacity: 0.6;
+}
+
+.ink-swatch-settings-gear:hover {
+    opacity: 1;
+    color: var(--text-normal);
+}
+
+.ink-popover-row {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-sizing: border-box;
+}
+
+.ink-color-picker-popover {
+    width: 220px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    box-sizing: border-box;
+}
+
+.opacity-row {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+}
+
+.color-value-row {
+    flex-direction: row;
+    align-items: stretch;
+    gap: 6px;
+}
+
+.ink-popover-value-fields {
+    flex: 0 0 142px;
+    width: 142px;
+    min-width: 142px;
+    display: flex;
+    gap: 5px;
+}
+
+.ink-popover-sub-input {
+    flex: 0 0 44px;
+    width: 44px;
+    min-width: 44px;
+    max-width: 44px;
+    height: 28px;
+    padding: 2px 2px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-family: var(--font-monospace);
+    font-size: 9px;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0;
+    text-align: center;
+    box-sizing: border-box;
+}
+
+.ink-popover-sub-input.is-wide {
+    flex-basis: 142px;
+    width: 142px;
+    min-width: 142px;
+    max-width: 142px;
+    text-align: left;
+    padding: 2px 7px;
+}
+
+.ink-format-toggle-btn {
+    flex: 0 0 42px;
+    height: 28px;
+    padding: 0 4px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background: var(--background-secondary);
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.ink-format-toggle-btn:hover {
+    color: var(--text-normal);
+    background: var(--background-modifier-hover);
+}
+
+.ink-popover-color-matrix {
+    display: block;
+    width: 100%;
+    height: 120px;
+    border-radius: 4px;
+    cursor: crosshair;
+    box-sizing: border-box;
+    border: 1px solid var(--background-modifier-border);
+}
+
+.ink-popover-hue-slider {
+    width: 100%;
+    height: 8px;
+    border-radius: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    outline: none;
+    cursor: pointer;
+    background: linear-gradient(to right, #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%);
+    margin: 4px 0;
+}
+
+.ink-popover-hue-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.3);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    cursor: pointer;
+}
+
+/* Swatch Manager Modal Styles */
+.ink-modal-tab-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    position: sticky;
+    top: 0;
+    background: var(--background-primary);
+    z-index: 10;
+}
+.ink-modal-tab-btn {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: 4px;
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-secondary);
+    color: var(--text-muted);
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s ease;
+    font-size: 11px;
+}
+.ink-modal-tab-btn:hover {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
+.ink-modal-creator-btn {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 16px;
+    border-radius: 4px;
+    border: 1px dashed var(--interactive-accent);
+    background: transparent;
+    color: var(--interactive-accent);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+.ink-modal-creator-btn:hover {
+    background: rgba(var(--interactive-accent-rgb), 0.1);
+}
+.ink-modal-scroll-stream {
+    max-height: 60vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-right: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.ink-manager-palette-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 44px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-primary);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.ink-manager-palette-row.is-dragging {
+    opacity: 0.5;
+    background: var(--background-modifier-hover);
+}
+@keyframes inkRowRemove {
+    0% { opacity: 1; transform: scale(1); max-height: 100px; padding-top: 6px; padding-bottom: 6px; margin: 0; }
+    100% { opacity: 0; transform: scale(0.9); max-height: 0; padding-top: 0; padding-bottom: 0; margin: 0; border: none; overflow: hidden; }
+}
+.ink-manager-palette-row.is-removing {
+    animation: inkRowRemove 0.25s forwards ease-out;
+}
+.ink-drag-grip {
+    cursor: grab;
+    color: var(--text-muted);
+    font-size: 16px;
+    user-select: none;
+    padding: 0 4px;
+}
+.ink-drag-grip:active {
+    cursor: grabbing;
+}
+.ink-row-name-field {
+    flex: 1;
+    min-width: 80px;
+    border: none;
+    background: transparent;
+    border-bottom: 1px solid transparent;
+    color: var(--text-normal);
+    font-size: 14px;
+    padding: 2px 4px;
+    outline: none;
+    transition: border-bottom-color 0.2s ease;
+}
+.ink-row-name-field:focus {
+    border-bottom-color: var(--interactive-accent);
+}
+.ink-colors-sequence-strip {
+    display: flex;
+    gap: 8px;
+}
+.ink-palette-color-circle {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+    transition: transform 0.1s ease;
+    border: 2px solid transparent;
+}
+.ink-palette-color-circle:hover {
+    transform: scale(1.1);
+}
+.ink-palette-color-circle.is-active-slot {
+    border-color: var(--interactive-accent);
+    transform: scale(1.05);
+}
+.ink-row-delete-btn {
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 14px;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+.ink-row-delete-btn:hover {
+    color: var(--text-error, #f85149);
+    background: var(--background-modifier-hover);
+}
+
+.ink-pen-options-panel {
+  width: 100% !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+}
+
+/* Active text label banner */
+.ink-profile-indicator-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  text-align: center;
+}
+
+/* Carousel layout wrapper */
+.ink-profile-carousel {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 4px 2px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  scrollbar-width: none; /* Hide default scroll track bars */
+}
+.ink-profile-carousel::-webkit-scrollbar {
+  display: none;
+}
+
+/* Profile circular button layout pill container elements */
+.ink-profile-pill {
+  flex: 0 0 34px; /* Hard dynamic lock to prevent flexbox collapsing squishing artifacts */
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50% !important;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.ink-profile-pill:hover {
+  transform: scale(1.05);
+}
+
+/* Scale down internal icons slightly so they fit cleanly inside the 34px boundary shells */
+.ink-profile-pill svg {
+  width: 16px !important;
+  height: 16px !important;
+  stroke-width: 2.25;
+}
+
+/* Active selection accent frame rings */
+.ink-profile-pill.is-selected {
+  border-color: var(--interactive-accent) !important;
+  box-shadow: 0 0 0 1.5px var(--interactive-accent);
+}
+
+/* Bottom Settings Row Toggle Switch */
+.ink-toggle-row-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 2px 4px 2px;
+  margin-top: 8px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+.ink-toggle-row-container label {
+  font-size: 12px;
+  color: var(--text-normal);
+}
+
+/* ── Pencil Case UI Styles ── */
+
+.ink-pencil-case-toggle-btn {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--ink-surface-bg);
+    border: var(--ink-surface-border);
+    box-shadow: var(--ink-shadow-3);
+    backdrop-filter: blur(var(--ink-surface-blur));
+    cursor: pointer;
+    color: var(--icon-color, var(--text-muted));
+    z-index: var(--layer-popover);
+    box-sizing: border-box !important;
+}
+
+.ink-pencil-case-toggle-btn:hover {
+    background: var(--background-modifier-hover) !important;
+    color: var(--text-normal);
+}
+
+.ink-pencil-case-toggle-btn.is-active-popover {
+    background: var(--background-modifier-hover) !important;
+    color: var(--interactive-accent) !important;
+    border: 1px solid var(--interactive-accent) !important;
+}
+
+.ink-pencil-case-drawer-popover {
+    width: 120px;
+    padding: 10px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    z-index: var(--layer-popover);
+}
+
+.ink-pencil-case-drawer {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 6px 0;
+    max-height: 200px;
+    overflow-y: auto;
+    width: 100%;
+    align-items: center;
+}
+
+.ink-case-preset-pill {
+    flex-shrink: 0;
+    aspect-ratio: 1 / 1;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--background-modifier-border);
+    cursor: pointer;
+    box-sizing: border-box !important;
+    padding: 0;
+    margin: 0;
+    box-shadow: var(--ink-shadow-1);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ink-case-preset-pill:hover {
+    transform: scale(1.1);
+    box-shadow: var(--ink-shadow-2);
+}
+
+.ink-case-preset-pill svg {
+    width: 16px;
+    height: 16px;
+    pointer-events: none;
+}
+
+.ink-case-add-trigger {
+    margin-top: 8px;
+    padding: 6px 8px;
+    font-size: 11px;
+    border-radius: 6px;
+    border: 1px solid var(--background-modifier-border);
+    background: transparent;
+    color: var(--text-normal);
+    cursor: pointer;
+    text-align: center;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.ink-case-add-trigger:hover {
+    background: var(--background-modifier-hover);
+}
+
+/* Settings tab editor UI */
+.ink-pencil-case-editor-header {
+    margin-top: 16px;
+    margin-bottom: 8px;
+}
+
+.ink-pencil-case-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding: 10px;
+    background: var(--background-secondary-alt);
+    border-radius: 6px;
+    border: 1px solid var(--background-modifier-border);
+}
+
+.ink-pencil-case-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.ink-pencil-case-name-input {
+    flex: 1;
+    height: 30px;
+}
+
+.ink-pencil-case-swatch-box {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    border: 1px solid var(--background-modifier-border);
+    flex-shrink: 0;
+}
+
+.ink-pencil-case-trash-btn {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    cursor: pointer;
+    color: var(--text-error);
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+}
+
+.ink-pencil-case-trash-btn:hover {
+    color: var(--text-error-hover);
+    background: var(--background-modifier-hover);
+}
+
+.ink-pencil-case-empty-editor {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 12px 0;
+}
+
+/* ── Context Panel Header & Star Favorite Button ── */
+.ink-pen-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin-bottom: 6px;
+}
+
+.ink-star-tool-btn {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    cursor: pointer;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    transition: color 0.15s ease, transform 0.15s ease;
+    padding: 0;
+}
+
+.ink-star-tool-btn:hover {
+    color: #f1c40f;
+    transform: scale(1.15);
+}
+
+.ink-star-tool-btn.is-active {
+    color: #f1c40f !important;
+    fill: #f1c40f !important;
+}
+
+.ink-star-tool-btn.is-active svg {
+    fill: currentColor;
+}
+
+/* ── Global Draggable Horizontal Pencil Case Bar ── */
+.ink-global-pencil-case-bar {
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: var(--layer-popover);
+    display: inline-flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 24px;
+    background: var(--ink-surface-bg);
+    border: var(--ink-surface-border);
+    box-shadow: var(--ink-shadow-3);
+    backdrop-filter: blur(var(--ink-surface-blur));
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    box-sizing: border-box !important;
+    width: auto !important;
+    height: auto !important;
+    max-width: 90%;
+    white-space: nowrap !important;
+}
+
+.ink-global-pencil-case-bar.is-vertical-orientation {
+    flex-direction: column !important;
+    width: auto !important;
+    height: auto !important;
+}
+
+.ink-global-pencil-case-bar.is-vertical-orientation .ink-pencil-case-presets-list {
+    flex-direction: column !important;
+}
+
+.ink-global-pencil-case-bar.is-vertical-orientation .ink-pencil-case-divider {
+    width: 20px !important;
+    height: 1px !important;
+    margin: 2px 0 !important;
+}
+
+.ink-global-toolbar.is-horizontal-orientation {
+    flex-direction: row !important;
+    width: auto !important;
+    height: auto !important;
+}
+
+.ink-global-toolbar.is-horizontal-orientation .ink-tool-pill {
+    flex-direction: row !important;
+    width: auto !important;
+    padding: 6px 12px !important;
+    gap: 6px !important;
+}
+
+.ink-global-toolbar.is-horizontal-orientation .color-slots-stack,
+.ink-global-toolbar.is-horizontal-orientation .ink-color-slot-stack,
+.ink-global-toolbar.is-horizontal-orientation .ink-swatch-carousel-wrapper,
+.ink-global-toolbar.is-horizontal-orientation .ink-swatch-dots-strip,
+.ink-swatch-carousel-wrapper.is-horizontal,
+.ink-swatch-dots-strip.is-horizontal {
+    flex-direction: row !important;
+    width: auto !important;
+    height: auto !important;
+}
+
+.ink-global-toolbar.is-horizontal-orientation .ink-tool-pill-action-row {
+    flex-direction: row !important;
+}
+
+.ink-global-toolbar.is-edge-docked-left {
+    left: 12px !important;
+    right: auto !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+}
+
+.ink-global-toolbar.is-edge-docked-right {
+    left: auto !important;
+    right: 12px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+}
+
+.ink-global-toolbar.is-edge-docked-top {
+    top: 12px !important;
+    bottom: auto !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+}
+
+.ink-global-toolbar.is-edge-docked-bottom {
+    top: auto !important;
+    bottom: 12px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+}
+
+.ink-global-toolbar.is-vertical-orientation {
+    flex-direction: column !important;
+    width: auto !important;
+    height: auto !important;
+    max-height: 90vh;
+}
+
+.ink-global-toolbar.is-vertical-orientation .ink-tool-pill {
+    flex-direction: column !important;
+    width: auto !important;
+    padding: 12px 6px !important;
+    gap: 6px !important;
+}
+
+.ink-global-toolbar.is-vertical-orientation .color-slots-stack {
+    flex-direction: column !important;
+}
+
+.ink-global-toolbar.is-vertical-orientation .ink-tool-pill-action-row {
+    flex-direction: column !important;
+}
+
+.ink-global-pencil-case-bar.is-dragging,
+.ink-global-toolbar.is-dragging {
+    opacity: 0.9;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35) !important;
+    user-select: none !important;
+    cursor: grabbing !important;
+}
+
+.ink-global-pencil-case-bar.is-collapsed .ink-pencil-case-presets-list,
+.ink-global-pencil-case-bar.is-collapsed .ink-pencil-case-divider {
+    display: none !important;
+}
+
+.ink-pencil-case-drag-handle {
+    cursor: grab;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    padding: 2px;
+    opacity: 0.6;
+    transition: opacity 0.15s ease;
+}
+
+.ink-pencil-case-drag-handle:hover {
+    opacity: 1;
+}
+
+.ink-pencil-case-drag-handle:active {
+    cursor: grabbing;
+}
+
+.ink-pencil-case-presets-list {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+}
+
+.ink-pencil-case-divider {
+    width: 1px;
+    height: 20px;
+    background: var(--background-modifier-border);
+    margin: 0 2px;
+}
+
+.ink-case-collapse-btn {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    cursor: pointer;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    padding: 0;
+}
+
+.ink-case-collapse-btn:hover {
+    color: var(--text-normal);
+    background: var(--background-modifier-hover) !important;
+}
