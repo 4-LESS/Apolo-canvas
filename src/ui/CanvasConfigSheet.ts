@@ -1,5 +1,6 @@
 import { App, Modal } from 'obsidian';
 import { InkEngine } from '../engine/InkEngine';
+import { DeleteConfirmModal } from './modals/DeleteConfirmModal';
 
 export interface CanvasConfigSaveData {
     pageSize: string;
@@ -91,7 +92,24 @@ export class CanvasConfigSheetModal extends Modal {
             gridValSpan.textContent = `${gridSlider.value}px`;
         });
 
-        // 4. Buttons row
+        // 4. Danger zone: clear all ink data on this canvas
+        const dangerContainer = contentEl.createDiv({ cls: 'ink-modal-setting-row ink-modal-danger-row' });
+        dangerContainer.createEl('label', { text: 'Danger Zone' });
+        const deleteDataBtn = dangerContainer.createEl('button', {
+            cls: 'ink-modal-btn mod-warning',
+            text: 'Delete Ink Data'
+        });
+        deleteDataBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            new DeleteConfirmModal(this.app, () => {
+                page.elements = [];
+                this.engine.requestFullRender();
+                this.engine.requestSave();
+                this.close();
+            }).open();
+        });
+
+        // 5. Buttons row
         const btnContainer = contentEl.createDiv({ cls: 'ink-modal-buttons' });
         btnContainer.style.display = 'flex';
         btnContainer.style.justifyContent = 'flex-end';

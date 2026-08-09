@@ -1,30 +1,21 @@
-import { MarkdownView, setIcon } from 'obsidian';
+﻿import { MarkdownView, setIcon } from 'obsidian';
 import type { App, EventRef, Workspace } from 'obsidian';
 import { FocusedEngineRef } from '../engine/FocusedEngineRef';
 import { InkEngine } from '../engine/InkEngine';
 import { StrokePattern } from '../model/ElementStyle';
 import type { ApoloCanvasSettings, InkPalette } from '../plugin/Settings';
 import { ColorStackComponent } from './toolbar/ColorStackComponent';
-import { PenProfileRegistry } from '../model/PenProfileRegistry';
-import { HighlighterOptionsPopover } from './toolbar/popovers/HighlighterOptionsPopover';
+import { StrokeToolOptionsPopover, PEN_OPTIONS_CONFIG, HIGHLIGHTER_OPTIONS_CONFIG } from './toolbar/popovers/StrokeToolOptionsPopover';
 import { ToolPillComponent } from './toolbar/ToolPillComponent';
-import { isColorMatch } from './toolbar/colorUtils';
 import { ColorPickerPopover } from './toolbar/popovers/ColorPickerPopover';
 import { EraserOptionsPopover } from './toolbar/popovers/EraserOptionsPopover';
 import { PatternPopover } from './toolbar/popovers/PatternPopover';
-import { SwatchManagerPopover } from './toolbar/popovers/SwatchManagerPopover';
-import { PenOptionsPopover } from './toolbar/popovers/PenOptionsPopover';
 import { ShapeOptionsPopover } from './toolbar/popovers/ShapeOptionsPopover';
 import { SwatchManagerModal } from './modals/SwatchManagerModal';
-import { PencilCaseDrawer } from './toolbar/popovers/PencilCaseDrawer';
 import { PencilCaseBar } from './toolbar/popovers/PencilCaseBar';
 import { FloatingDragController } from './toolbar/FloatingDragController';
-
-const PATTERN_SVGS: Record<StrokePattern, string> = {
-    solid: '<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"><line x1="4" y1="12" x2="20" y2="12" stroke-linecap="round"/></svg>',
-    dashed: '<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"><line x1="4" y1="12" x2="20" y2="12" stroke-dasharray="4,4" stroke-linecap="round"/></svg>',
-    dotted: '<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"><line x1="4" y1="12" x2="20" y2="12" stroke-dasharray="1,4" stroke-linecap="round"/></svg>'
-};
+import { addClass, removeClass, toggleClass, hasClass } from '../utils/dom';
+import { PATTERN_SVGS } from './toolbar/patterns';
 
 type PaletteTool = 'pen' | 'highlighter' | 'shape';
 
@@ -50,16 +41,6 @@ type AppDomLike = App & {
     workspace: WorkspaceDomLike;
 };
 
-interface StyleChange {
-    profileId?: string;
-    thickness?: number;
-    smoothing?: number;
-    color?: string;
-    shapeId?: string;
-    fillEnabled?: boolean;
-    fillColor?: string;
-}
-
 const DEFAULT_PALETTES: Record<PaletteTool, InkPalette[]> = {
     pen: [{ id: 'classic', name: 'Classic', colors: ['#000000', '#ff0000', '#0000ff', '#00ff00'] }],
     highlighter: [{ id: 'classic', name: 'Classic', colors: ['#ffff0080', '#00ff0080', '#ff00ff80', '#00ffff80'] }],
@@ -67,33 +48,18 @@ const DEFAULT_PALETTES: Record<PaletteTool, InkPalette[]> = {
 };
 
 export class Toolbar {
-    public stylePanelEl!: HTMLElement;
     public patternToggleBtn!: HTMLButtonElement;
-    public highlighterOptionsPopover!: HighlighterOptionsPopover;
+    public highlighterOptionsPopover!: StrokeToolOptionsPopover;
     public colorPickerPopover!: ColorPickerPopover;
-    public palettePopover!: SwatchManagerPopover;
-    public paletteManagementPopover!: SwatchManagerPopover;
     public patternPopover!: PatternPopover;
     public eraserPopover!: EraserOptionsPopover;
-    public penOptionsPopover!: PenOptionsPopover;
+    public penOptionsPopover!: StrokeToolOptionsPopover;
     public shapeOptionsPopover!: ShapeOptionsPopover;
-    public pencilCaseToggleBtn!: HTMLButtonElement;
-    public pencilCaseDrawer!: PencilCaseDrawer;
     public pencilCaseBar!: PencilCaseBar;
     public dragController!: FloatingDragController;
     public activePickerSlotIdx: number | null = null;
     public settingsSaveTimeout: ReturnType<typeof setTimeout> | null = null;
     public swatchManagerModal: SwatchManagerModal | null = null;
-    public presetSwatchesEl!: HTMLElement;
-    public savedSwatchesEl!: HTMLElement;
-    public hexInput!: HTMLInputElement;
-    public recentColorsEl!: HTMLElement;
-    public thicknessSlider!: HTMLInputElement;
-    public patternRowEl!: HTMLElement;
-    public patternButtons: Map<StrokePattern, HTMLButtonElement> = new Map();
-    public fillColorRowEl!: HTMLElement;
-    public fillNoneBtn!: HTMLButtonElement;
-    public fillSolidBtn!: HTMLButtonElement;
     private toolPillComponent!: ToolPillComponent;
     private colorStackComponent!: ColorStackComponent;
     private cleanups: (() => void)[] = [];
@@ -102,8 +68,6 @@ export class Toolbar {
     private lastActiveToolName: string | null = null;
     private outsideDismissHandler: ((event: PointerEvent) => void) | null = null;
     private sidebarStateFrame: number | null = null;
-    private fillColors = ['#1a1a1a', '#1e3a5f', '#7c1d1d', '#1a3d2b', '#4a4a4a'];
-    private selectedFillColor = '#1a1a1a';
 
     constructor(
         public toolbarEl: HTMLElement,
@@ -114,7 +78,6 @@ export class Toolbar {
         this.focusedEngineRef.onChange((engine) => {
             this.teardownListeners();
             this.setupListeners(engine);
-            this.updateVisibilityMode();
             this.updateSidebarOverlayState();
             this.updatePencilCaseMount(engine);
             this.syncToolState();
@@ -122,7 +85,6 @@ export class Toolbar {
         this.setupListeners(this.focusedEngineRef.get());
         this.installOutsideDismiss();
         this.installWorkspaceListeners();
-        this.updateVisibilityMode();
         this.updateSidebarOverlayState();
         this.updatePencilCaseMount(this.focusedEngineRef.get());
         this.syncToolState();
@@ -147,8 +109,6 @@ export class Toolbar {
     get colorSlotsStackEl(): HTMLElement { return this.colorStackComponent.containerEl; }
     get colorSlotBtns(): HTMLButtonElement[] { return this.colorStackComponent.slotBtns; }
     get colorPickerPopoverEl(): HTMLElement { return this.colorPickerPopover.el; }
-    get palettePopoverEl(): HTMLElement { return this.palettePopover.el; }
-    get paletteManagementPopoverEl(): HTMLElement { return this.paletteManagementPopover.el; }
     get patternPopoverEl(): HTMLElement { return this.patternPopover.el; }
     get eraserPopoverEl(): HTMLElement { return this.eraserPopover.el; }
     get penOptionsPanelEl(): HTMLElement { return this.penOptionsPopover?.el; }
@@ -184,9 +144,6 @@ export class Toolbar {
         }
 
         const rootContainer = this.getOverlayContainer();
-        this.stylePanelEl = rootContainer.createDiv({ cls: 'ink-style-panel is-hidden' });
-        // ContextPanelController removed — pen and highlighter now have fully isolated popovers.
-        this.buildCompatibilityNodes();
         // Popovers live outside leaves and the draggable toolbar.  The toolbar is
         // passed separately as their click-away boundary and positioning reference.
         // Use the document overlay rather than a workspace split: splits can clip
@@ -194,12 +151,10 @@ export class Toolbar {
         // what produced the full-height/sidebar-looking option panel.
         const popoverContainer = this.getPopoverContainer(rootContainer);
         this.colorPickerPopover = new ColorPickerPopover(popoverContainer, this.plugin, this, this.toolbarEl);
-        this.palettePopover = new SwatchManagerPopover(popoverContainer, this.plugin, this, this.toolbarEl);
-        this.paletteManagementPopover = this.palettePopover;
         this.patternPopover = new PatternPopover(popoverContainer, this.plugin, this, this.toolbarEl);
         this.eraserPopover = new EraserOptionsPopover(popoverContainer, this.plugin, () => this.toolButtons.get('eraser'), this.toolbarEl);
-        this.penOptionsPopover = new PenOptionsPopover(popoverContainer, this.plugin, this, this.toolbarEl);
-        this.highlighterOptionsPopover = new HighlighterOptionsPopover(popoverContainer, this.plugin, this, this.toolbarEl);
+        this.penOptionsPopover = new StrokeToolOptionsPopover(popoverContainer, this.plugin, this, PEN_OPTIONS_CONFIG, this.toolbarEl);
+        this.highlighterOptionsPopover = new StrokeToolOptionsPopover(popoverContainer, this.plugin, this, HIGHLIGHTER_OPTIONS_CONFIG, this.toolbarEl);
         this.shapeOptionsPopover = new ShapeOptionsPopover(popoverContainer, this.plugin, this, this.toolbarEl);
         this.pencilCaseBar = new PencilCaseBar(rootContainer, this.plugin, this);
 
@@ -216,45 +171,6 @@ export class Toolbar {
         });
         this.toggleClass(this.toolbarEl, 'is-vertical-orientation', true);
         this.colorStackComponent?.setOrientation('vertical');
-    }
-
-    private buildCompatibilityNodes(): void {
-        const dummy = this.toolbarEl.createDiv({ cls: 'ink-dummy-container', attr: { style: 'display: none !important;' } });
-        this.presetSwatchesEl = dummy.createDiv({ cls: 'ink-style-row swatches-presets' });
-        this.savedSwatchesEl = dummy.createDiv({ cls: 'ink-style-row swatches-saved' });
-        this.recentColorsEl = dummy.createDiv({ cls: 'ink-style-row swatches-recent' });
-        this.hexInput = dummy.createEl('input', { cls: 'ink-hex-input', attr: { type: 'text', placeholder: '#' } }) as HTMLInputElement;
-        this.hexInput.addEventListener('input', () => this.commitHexInput());
-        this.thicknessSlider = dummy.createEl('input', { cls: 'ink-thickness-slider', attr: { type: 'range', min: '1', max: '20', step: '1' } }) as HTMLInputElement;
-        this.thicknessSlider.addEventListener('input', (e) => this.withEngine((engine) => {
-            const slider = (e?.target as HTMLInputElement) || this.thicknessSlider;
-            const val = Number(slider?.value ?? 4);
-            engine.setToolSize(engine.getToolName(), val);
-            engine.activeProfileId = '';
-        }));
-        this.patternRowEl = dummy.createDiv({ cls: 'ink-style-row pattern-row' });
-        (Object.keys(PATTERN_SVGS) as StrokePattern[]).forEach((id) => {
-            const btn = this.patternRowEl.createEl('button', { cls: 'ink-tool-btn pattern-btn', attr: { title: id, 'data-pattern': id } }) as HTMLButtonElement;
-            btn.innerHTML = PATTERN_SVGS[id];
-            btn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this.withEngine((engine) => {
-                    engine.currentPattern = id;
-                    engine.activeProfileId = '';
-                    engine.requestFullRender();
-                });
-            });
-            this.patternButtons.set(id, btn);
-        });
-        dummy.createDiv({ cls: 'ink-popover-separator' });
-        dummy.createEl('div', { cls: 'ink-style-header', text: 'FILL' });
-        const fillTypeRow = dummy.createDiv({ cls: 'ink-style-row fill-type-row' });
-        this.fillNoneBtn = fillTypeRow.createEl('button', { cls: 'ink-fill-type-btn', text: 'None' }) as HTMLButtonElement;
-        this.fillSolidBtn = fillTypeRow.createEl('button', { cls: 'ink-fill-type-btn', text: 'Solid' }) as HTMLButtonElement;
-        this.fillNoneBtn.addEventListener('click', () => this.withEngine((engine) => { engine.currentFillColor = 'transparent'; engine.requestFullRender(); }));
-        this.fillSolidBtn.addEventListener('click', () => this.withEngine((engine) => { engine.currentFillColor = this.selectedFillColor; engine.requestFullRender(); }));
-        this.fillColorRowEl = dummy.createDiv({ cls: 'ink-style-row swatches-fill' });
     }
 
     private handleToolSelect(toolId: string): void {
@@ -285,7 +201,7 @@ export class Toolbar {
                 this.intentionallyOpenedPanelEl = null;
             } else {
                 this.closeAllMenus();
-                this.penOptionsPopover.showPenOptions(btn, engine);
+                this.penOptionsPopover.showOptions(btn, engine);
                 this.intentionallyOpenedPanelEl = this.penOptionsPopover.el;
             }
         } else if (toolId === 'highlighter') {
@@ -294,7 +210,7 @@ export class Toolbar {
                 this.intentionallyOpenedPanelEl = null;
             } else {
                 this.closeAllMenus();
-                this.highlighterOptionsPopover.showHighlighterOptions(btn, engine);
+                this.highlighterOptionsPopover.showOptions(btn, engine);
                 this.intentionallyOpenedPanelEl = this.highlighterOptionsPopover.el;
             }
         } else if (toolId === 'shape') {
@@ -328,41 +244,13 @@ export class Toolbar {
         this.cleanups = [];
     }
 
-    updateVisibilityMode(): void {
-        const app = this.getApp();
-        if (!app) return;
-        const activeView = app.workspace.getActiveViewOfType?.(MarkdownView);
-        const isCanvasView = app.workspace.activeLeaf?.view?.getViewType?.() === 'ink-full-view';
-        const isReadingMode = activeView?.getMode?.() === 'preview';
-        this.toggleClass(this.toolbarEl, 'is-hidden', (!activeView && !isCanvasView) || isReadingMode);
-        this.toggleClass(this.toolbarEl, 'is-idle', !isReadingMode && !!(activeView || isCanvasView) && this.focusedEngineRef.get() === null);
-    }
-
     public updateSidebarOverlayState(): void {
+        // On mobile the left split is always an overlay drawer: hide the toolbar
+        // exactly while it is open. Obsidian's own `collapsed` flag is the source
+        // of truth â€” no rect-measuring heuristics.
         const app = this.getApp() as AppDomLike | undefined;
-        if (!app || !app.isMobile) {
-            this.toolbarEl.classList.remove('ink-sidebar-overlay-open');
-            this.clearSidebarOffset();
-            return;
-        }
-        
-        const leftSplit = app.workspace?.leftSplit;
-        const rootContainer = app.workspace.containerEl;
-        
-        if (!leftSplit || leftSplit.collapsed) {
-            this.toolbarEl.classList.remove('ink-sidebar-overlay-open');
-            this.clearSidebarOffset();
-            return;
-        }
-        
-        const leftRect = leftSplit.containerEl?.getBoundingClientRect?.();
-        const rootRect = rootContainer.getBoundingClientRect();
-        const hasVisibleSidebar = !!leftRect && leftRect.width > 50 && leftRect.right > 50;
-        const overlapsRoot = !!leftRect && !!rootRect && leftRect.right > rootRect.left + 24;
-        const isPinned = !!rootRect && rootRect.left > 50 && !overlapsRoot;
-        const isOverlayOpen = hasVisibleSidebar && !isPinned;
-        
-        this.toolbarEl.classList.toggle('ink-sidebar-overlay-open', !!isOverlayOpen);
+        const isOverlayOpen = !!app?.isMobile && !!app.workspace?.leftSplit && !app.workspace.leftSplit.collapsed;
+        this.toggleClass(this.toolbarEl, 'ink-sidebar-overlay-open', isOverlayOpen);
         this.clearSidebarOffset();
     }
 
@@ -415,8 +303,16 @@ export class Toolbar {
 
     syncToolState(): void {
         const engine = this.focusedEngineRef.get();
-        const activeView = this.getApp()?.workspace.getActiveViewOfType(MarkdownView);
+        const workspace = this.getApp()?.workspace;
+        const activeView = workspace?.getActiveViewOfType(MarkdownView);
         const isReadingMode = activeView && typeof activeView.getMode === 'function' && activeView.getMode() === 'preview';
+
+        // During a leaf swap Obsidian transiently reports no active view at all.
+        // Deciding visibility from that snapshot latches the toolbar hidden, so
+        // keep the previous state until the workspace settles and re-notifies.
+        if (workspace && !activeView && !workspace.activeLeaf?.view) {
+            return;
+        }
 
         // A focus change briefly sets the engine to null while Obsidian swaps
         // leaves.  That is an idle state, not a reason to hide the global toolbar.
@@ -425,7 +321,6 @@ export class Toolbar {
             this.toolButtons.forEach((btn) => this.removeClass(btn, 'is-active'));
             this.toolPillComponent.setSnapDisabled(true);
             this.toolPillComponent.setHistoryState(false, false);
-            this.addClass(this.stylePanelEl, 'is-hidden');
             this.addClass(this.toolbarEl, 'is-hidden');
             this.pencilCaseBar?.updateVisibility(false);
             return;
@@ -461,70 +356,20 @@ export class Toolbar {
         this.colorSlotsStackEl.style.pointerEvents = inactiveStyle ? 'none' : 'all';
         this.patternToggleBtn.style.opacity = tool === 'pen' || tool === 'shape' ? '1.0' : '0.4';
         this.patternToggleBtn.style.pointerEvents = tool === 'pen' || tool === 'shape' ? 'all' : 'none';
-        const activePopover = tool === 'pen' ? this.penOptionsPopover?.el : tool === 'highlighter' ? this.highlighterOptionsPopover?.el : tool === 'shape' ? this.shapeOptionsPopover?.el : null;
-        const isPopoverHidden = !activePopover || this.hasClass(activePopover, 'is-hidden');
-        const isPanelOpened = !inactiveStyle && !isPopoverHidden;
-        this.addClass(this.stylePanelEl, 'is-hidden');
-        if (isPanelOpened) {
-            this.syncActivePanels(engine, tool);
-        }
-        this.renderCompatibility(engine);
+        const activePattern = engine.currentPattern ?? 'solid';
+        this.patternToggleBtn.innerHTML = PATTERN_SVGS[activePattern] ?? PATTERN_SVGS.solid;
         this.renderColorSlots(engine);
         this.pencilCaseBar?.syncValues();
         this.pencilCaseBar?.updateVisibility(true);
     }
 
-    private syncActivePanels(_engine: InkEngine, _tool: string): void {
-        // No-op: pen and highlighter popovers sync their own state
-        // when opened via showPenOptions / showHighlighterOptions.
-    }
-
-    private handleStyleChange(styles: StyleChange): void {
-        this.withEngine((engine) => {
-            if (styles.profileId !== undefined) {
-                engine.activeProfileId = styles.profileId;
-                const profile = PenProfileRegistry.get(styles.profileId);
-                if (profile) {
-                    engine.setToolSize(engine.getToolName(), profile.baseWidth);
-                    if (engine.getToolName() === 'pen') {
-                        engine.setPenSmoothing?.(profile.baseSmoothing);
-                    } else if (engine.getToolName() === 'highlighter') {
-                        engine.setHighlighterSmoothing?.(profile.baseSmoothing);
-                    }
-                    engine.currentPattern = profile.pattern || 'solid';
-                }
-            } else {
-                if (styles.thickness !== undefined) {
-                    engine.setToolSize(engine.getToolName(), styles.thickness);
-                    engine.activeProfileId = '';
-                }
-                if (styles.smoothing !== undefined) {
-                    if (engine.getToolName() === 'pen') {
-                        engine.setPenSmoothing?.(styles.smoothing);
-                    } else if (engine.getToolName() === 'highlighter') {
-                        engine.setHighlighterSmoothing?.(styles.smoothing);
-                    }
-                    engine.activeProfileId = '';
-                }
-            }
-            if (styles.color !== undefined) engine.setPenColor(styles.color);
-            if (styles.shapeId !== undefined) engine.getTool('shape')?.setActiveShape?.(styles.shapeId);
-            if (styles.fillEnabled !== undefined) engine.currentFillColor = styles.fillEnabled ? this.selectedFillColor : 'transparent';
-            if (styles.fillColor !== undefined) { this.selectedFillColor = styles.fillColor; engine.currentFillColor = styles.fillColor; }
-            engine.requestFullRender();
-        });
-    }
-
     public closeAllMenus(except?: HTMLElement): void {
         if (this.eraserPopoverEl !== except) this.eraserPopover.hide();
         if (this.colorPickerPopoverEl !== except) this.colorPickerPopover.hide();
-        if (this.paletteManagementPopoverEl !== except) this.palettePopover.hide();
         if (this.patternPopoverEl !== except) this.patternPopover.hide();
         if (this.penOptionsPopover?.el !== except) this.penOptionsPopover?.hide();
         if (this.highlighterOptionsPopover?.el !== except) this.highlighterOptionsPopover?.hide();
         if (this.shapeOptionsPopover?.el !== except) this.shapeOptionsPopover?.hide();
-        if (this.pencilCaseDrawer && this.pencilCaseDrawer.el !== except) this.pencilCaseDrawer.hide();
-        this.addClass(this.stylePanelEl, 'is-hidden');
         if (!except) this.intentionallyOpenedPanelEl = null;
     }
 
@@ -548,7 +393,6 @@ export class Toolbar {
 
         [
             this.colorPickerPopover,
-            this.palettePopover,
             this.patternPopover,
             this.eraserPopover,
             this.penOptionsPopover,
@@ -556,7 +400,6 @@ export class Toolbar {
             this.shapeOptionsPopover
         ].forEach((popover) => popover?.destroy());
 
-        this.stylePanelEl?.remove();
         this.pencilCaseBar?.destroy();
         this.toolbarEl?.remove();
     }
@@ -648,69 +491,6 @@ export class Toolbar {
         this.colorStackComponent.syncColorSlots(palette.colors, activeIndex, tool);
     }
 
-    private renderCompatibility(engine: InkEngine): void {
-        const color = this.currentColor(engine);
-        this.hexInput.value = color;
-        this.removeClass(this.hexInput, 'is-invalid');
-        this.thicknessSlider.value = String(engine.getToolSize(engine.getToolName()) ?? 0);
-        const activePattern = engine.currentPattern ?? 'solid';
-        this.patternToggleBtn.innerHTML = PATTERN_SVGS[activePattern] ?? PATTERN_SVGS.solid;
-        this.patternButtons.forEach((btn, id) => this.toggleClass(btn, 'is-active', id === activePattern));
-        this.renderSavedSwatches(engine);
-        this.renderRecentColors(engine);
-        this.syncColorHighlights(color);
-    }
-
-    private renderSavedSwatches(engine: InkEngine): void {
-        this.savedSwatchesEl.empty();
-        const saved = this.plugin?.settings?.savedSwatches ?? ['', '', '', '', ''];
-        saved.forEach((color: string, idx: number) => {
-            const swatch = this.savedSwatchesEl.createDiv({ cls: 'ink-style-swatch saved-swatch' });
-            if (color) swatch.style.backgroundColor = color;
-            else { swatch.style.backgroundColor = 'transparent'; swatch.textContent = '+'; this.addClass(swatch, 'is-empty'); }
-            let pressTimeout: ReturnType<typeof setTimeout> | null = null;
-            let isLongPress = false;
-            swatch.addEventListener('pointerdown', () => {
-                isLongPress = false;
-                pressTimeout = setTimeout(() => {
-                    isLongPress = true;
-                    const activeColor = this.currentColor(engine);
-                    if (this.plugin?.settings?.savedSwatches) {
-                        this.plugin.settings.savedSwatches[idx] = activeColor;
-                        const savedPromise = this.plugin.saveSettings?.();
-                        if (savedPromise?.then) savedPromise.then(() => this.renderSavedSwatches(engine));
-                        else this.renderSavedSwatches(engine);
-                    }
-                }, 500);
-            });
-            const release = () => {
-                if (pressTimeout) clearTimeout(pressTimeout);
-                pressTimeout = null;
-                if (!isLongPress && color) {
-                    engine.setPenColor(color);
-                    engine.requestFullRender();
-                    this.syncToolState();
-                }
-            };
-            swatch.addEventListener('pointerup', release);
-            swatch.addEventListener('pointerleave', () => { if (pressTimeout) clearTimeout(pressTimeout); pressTimeout = null; });
-            swatch.addEventListener('pointercancel', () => { if (pressTimeout) clearTimeout(pressTimeout); pressTimeout = null; });
-        });
-    }
-
-    private renderRecentColors(engine: InkEngine): void {
-        this.recentColorsEl.empty();
-        (this.plugin?.settings?.recentColors ?? []).forEach((color: string) => {
-            const swatch = this.recentColorsEl.createDiv({ cls: 'ink-style-swatch recent-swatch' });
-            swatch.style.backgroundColor = color;
-            swatch.addEventListener('click', () => {
-                engine.setPenColor(color);
-                engine.requestFullRender();
-                this.syncToolState();
-            });
-        });
-    }
-
     private recordRecentColor(color: string): void {
         const settings = this.plugin?.settings;
         if (!settings?.recentColors) return;
@@ -720,33 +500,6 @@ export class Toolbar {
         const saved = this.plugin?.saveSettings?.();
         if (saved?.then) saved.then(() => this.syncToolState());
         else this.syncToolState();
-    }
-
-    private commitHexInput(): void {
-        const val = this.hexInput.value.trim();
-        const valid = /^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(val);
-        if (val && !valid) {
-            this.addClass(this.hexInput, 'is-invalid');
-            return;
-        }
-        this.removeClass(this.hexInput, 'is-invalid');
-        if (!val) return;
-        const formatted = val.startsWith('#') ? val : `#${val}`;
-        this.withEngine((engine) => {
-            engine.setPenColor(formatted);
-            engine.requestFullRender();
-            this.syncColorHighlights(formatted);
-        });
-    }
-
-    private syncColorHighlights(color: string): void {
-        const lower = color.toLowerCase();
-        [this.presetSwatchesEl, this.savedSwatchesEl, this.recentColorsEl].forEach((row) => {
-            row.querySelectorAll?.('.ink-style-swatch').forEach((element) => {
-                const swatch = element as HTMLElement;
-                this.toggleClass(swatch, 'is-active', isColorMatch(swatch.style.backgroundColor, lower));
-            });
-        });
     }
 
     private restoreToolColor(engine: InkEngine, tool: string): void {
@@ -779,77 +532,8 @@ export class Toolbar {
         return engine.toolContext.currentColor ?? '#1a1a1a';
     }
 
-    public updateSmartPopoverPosition(popoverEl: HTMLElement, anchorBtn?: HTMLElement): void {
-        if (!popoverEl) return;
-        const isHidden = this.hasClass(popoverEl, 'is-hidden');
-        if (isHidden) return;
-
-        // The panel is created in the workspace overlay.  Reparenting it to an
-        // active view here made it disappear when that view was replaced.
-        const viewContainer = this.getOverlayContainer();
-        if (!viewContainer) return;
-
-        const parentRect = viewContainer.getBoundingClientRect();
-        const toolbarRect = this.toolbarEl.getBoundingClientRect();
-
-        popoverEl.style.position = 'absolute';
-        popoverEl.style.zIndex = 'calc(var(--layer-popover) + 20)';
-
-        const isVert = this.toolbarEl.classList.contains('is-vertical-orientation');
-        let popoverRect = popoverEl.getBoundingClientRect();
-
-        const panelWidth = popoverRect.width > 50 ? popoverRect.width : 190;
-        const panelHeight = popoverRect.height > 50 ? popoverRect.height : 220;
-
-        let targetLeft = 0;
-        let targetTop = 0;
-
-        const toolbarMidX = (toolbarRect.left + toolbarRect.right) / 2;
-        const parentMidX = (parentRect.left + parentRect.right) / 2;
-        const isLeftHalf = toolbarMidX < parentMidX;
-
-        const toolbarMidY = (toolbarRect.top + toolbarRect.bottom) / 2;
-        const parentMidY = (parentRect.top + parentRect.bottom) / 2;
-        const isTopHalf = toolbarMidY < parentMidY;
-
-        const anchorRect = anchorBtn ? anchorBtn.getBoundingClientRect() : toolbarRect;
-
-        if (isVert) {
-            if (isLeftHalf) {
-                targetLeft = toolbarRect.right - parentRect.left + 12;
-            } else {
-                targetLeft = toolbarRect.left - parentRect.left - panelWidth - 12;
-            }
-
-            // Align popover top with clicked tool button top
-            targetTop = anchorRect.top - parentRect.top;
-        } else {
-            if (isTopHalf) {
-                targetTop = toolbarRect.bottom - parentRect.top + 12;
-            } else {
-                targetTop = toolbarRect.top - parentRect.top - panelHeight - 12;
-            }
-
-            // Center popover horizontally relative to clicked tool button
-            const anchorCenterX = anchorRect.left - parentRect.left + anchorRect.width / 2;
-            targetLeft = anchorCenterX - panelWidth / 2;
-        }
-
-        const minLeft = 12;
-        const maxLeft = Math.max(minLeft, parentRect.width - panelWidth - 12);
-        const minTop = 12;
-        const maxTop = Math.max(minTop, parentRect.height - panelHeight - 12);
-
-        targetLeft = Math.max(minLeft, Math.min(maxLeft, targetLeft));
-        targetTop = Math.max(minTop, Math.min(maxTop, targetTop));
-
-        popoverEl.style.left = `${targetLeft}px`;
-        popoverEl.style.top = `${targetTop}px`;
-    }
-
     private repositionOpenPopovers(): void {
         this.colorPickerPopover?.reposition();
-        this.palettePopover?.reposition();
         this.patternPopover?.reposition();
         this.eraserPopover?.reposition();
         this.penOptionsPopover?.reposition();
@@ -875,11 +559,13 @@ export class Toolbar {
 
     private installOutsideDismiss(): void {
         if (typeof document === 'undefined') return;
+        // Each popover dismisses itself via BasePopover's outside-click guard.
+        // This handler only resets toolbar-local interaction state.
         this.outsideDismissHandler = (event: PointerEvent) => {
             const target = event.target as Node | null;
             if (target && this.isToolbarInteractionTarget(target)) return;
             this.resetColorSlotClickCycle();
-            this.closeAllMenus();
+            this.intentionallyOpenedPanelEl = null;
         };
         document.addEventListener('pointerdown', this.outsideDismissHandler);
     }
@@ -887,16 +573,13 @@ export class Toolbar {
     private isToolbarInteractionTarget(target: Node): boolean {
         return [
             this.toolbarEl,
-            this.stylePanelEl,
             this.colorPickerPopover?.el,
-            this.palettePopover?.el,
             this.patternPopover?.el,
             this.eraserPopover?.el,
             this.penOptionsPopover?.el,
             this.highlighterOptionsPopover?.el,
             this.shapeOptionsPopover?.el,
-            this.pencilCaseBar?.containerEl,
-            this.pencilCaseDrawer?.el
+            this.pencilCaseBar?.containerEl
         ].some((element) => !!element?.contains(target));
     }
 
@@ -905,6 +588,12 @@ export class Toolbar {
         if (!workspace || typeof workspace.on !== 'function') return;
 
         const sync = () => {
+            // Workspace rebuilds (mobile resume, layout load) can orphan the
+            // toolbar element â€” re-attach it before syncing state.
+            const container = (this.getApp() as AppDomLike | undefined)?.workspace.containerEl;
+            if (container && this.toolbarEl.isConnected === false) {
+                container.appendChild(this.toolbarEl);
+            }
             this.syncToolState();
             this.repositionOpenPopovers();
         };
@@ -925,26 +614,13 @@ export class Toolbar {
         this.pencilCaseBar?.updateVisibility(!!(isEnabled && engine));
     }
 
-    private addClass(el: HTMLElement, cls: string): void {
-        if (typeof el.addClass === 'function') el.addClass(cls);
-        else el.classList.add(cls);
-    }
-
-    private removeClass(el: HTMLElement, cls: string): void {
-        if (typeof el.removeClass === 'function') el.removeClass(cls);
-        else el.classList.remove(cls);
-    }
-
-    private toggleClass(el: HTMLElement, cls: string, enabled: boolean): void {
-        enabled ? this.addClass(el, cls) : this.removeClass(el, cls);
-    }
+    private addClass(el: HTMLElement, cls: string): void { addClass(el, cls); }
+    private removeClass(el: HTMLElement, cls: string): void { removeClass(el, cls); }
+    private toggleClass(el: HTMLElement, cls: string, enabled: boolean): void { toggleClass(el, cls, enabled); }
 
     private getApp(): App | undefined {
         return this.plugin?.app ?? (globalThis as unknown as GlobalWithApp).app;
     }
 
-    private hasClass(el: HTMLElement, cls: string): boolean {
-        const compatibilityEl = el as HTMLElement & { hasClass?: (className: string) => boolean };
-        return compatibilityEl.hasClass?.(cls) ?? el.classList.contains(cls);
-    }
+    private hasClass(el: HTMLElement, cls: string): boolean { return hasClass(el, cls); }
 }

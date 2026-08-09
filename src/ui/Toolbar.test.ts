@@ -315,14 +315,13 @@ function createMockPlugin() {
             }
         },
         settings: {
-            savedSwatches: ['', '', '', '', ''],
             recentColors: []
         },
         saveSettings: vi.fn().mockResolvedValue(undefined)
     };
 }
 
-test('Toolbar populates complete UI structure correctly including style panel', () => {
+test('Toolbar populates complete UI structure correctly', () => {
     const mockPlugin = createMockPlugin();
     const toolbarEl = new MockElement('div');
     const focusedEngineRef = new FocusedEngineRef();
@@ -345,11 +344,6 @@ test('Toolbar populates complete UI structure correctly including style panel', 
     expect(buttonTitles).toContain('Snap to Grid (S)');
     expect(buttonTitles).toContain('Undo (Ctrl+Z)');
     expect(buttonTitles).toContain('Redo (Ctrl+Shift+Z)');
-
-    // Verify style panel structure
-    const stylePanel = toolbarEl.children.find(child => child.hasClass('ink-style-panel'));
-    expect(stylePanel).toBeDefined();
-    expect(stylePanel!.hasClass('is-hidden')).toBe(true); // default hidden until engine focus
 });
 
 test('Toolbar remains available as idle while the focused engine changes leaves', () => {
@@ -365,10 +359,9 @@ test('Toolbar remains available as idle while the focused engine changes leaves'
 
     expect(toolbarEl.hasClass('is-hidden')).toBe(false);
     expect(toolbarEl.hasClass('is-idle')).toBe(true);
-    expect(toolbar.stylePanelEl.hasClass('is-hidden')).toBe(true);
 });
 
-test('Toolbar opens compact tool popovers without revealing the legacy style panel', () => {
+test('Toolbar opens compact tool popovers on reselect', () => {
     const mockPlugin = createMockPlugin();
     const toolbarEl = new MockElement('div');
     const focusedEngineRef = new FocusedEngineRef();
@@ -376,56 +369,47 @@ test('Toolbar opens compact tool popovers without revealing the legacy style pan
 
     focusedEngineRef.set(engine);
     const toolbar = new Toolbar(toolbarEl as any, focusedEngineRef, mockPlugin);
-    const stylePanel = toolbarEl.children.find(child => child.hasClass('ink-style-panel'));
 
     // Initially, switch tool to lasso so we can test silent pen selection
     engine.setTool('lasso');
     toolbar.syncToolState();
-    expect(stylePanel!.hasClass('is-hidden')).toBe(true);
 
     // Case 1: Pen tool is active and opened -> its compact popover is shown.
     const penBtn = toolbar.toolButtons.get('pen');
     expect(penBtn).toBeDefined();
     // First click selects the tool silently
     penBtn!.trigger('click');
-    expect(stylePanel!.hasClass('is-hidden')).toBe(true);
+    expect(toolbar.penOptionsPopover.isOpen).toBe(false);
     // Second click opens the menu
     penBtn!.trigger('click');
     expect(toolbar.penOptionsPopover.isOpen).toBe(true);
-    expect(stylePanel!.hasClass('is-hidden')).toBe(true);
 
-    // Case 2: Eraser tool is active -> Style Panel hidden
+    // Case 2: Switching to eraser closes the pen popover
     const eraserBtn = toolbar.toolButtons.get('eraser');
     expect(eraserBtn).toBeDefined();
     eraserBtn!.trigger('click');
     expect(toolbar.penOptionsPopover.isOpen).toBe(false);
-    expect(stylePanel!.hasClass('is-hidden')).toBe(true);
 
-    // Case 3: Lasso tool is active -> Style Panel hidden
-    // First reactivate Pen and open its popover
+    // Case 3: Switching to lasso closes an open pen popover
     penBtn!.trigger('click');
     penBtn!.trigger('click');
     expect(toolbar.penOptionsPopover.isOpen).toBe(true);
-    
+
     const lassoBtn = toolbar.toolButtons.get('lasso');
     expect(lassoBtn).toBeDefined();
     lassoBtn!.trigger('click');
     expect(toolbar.penOptionsPopover.isOpen).toBe(false);
-    expect(stylePanel!.hasClass('is-hidden')).toBe(true);
 
-    // Case 4: Shape tool is active and opened -> its compact popover is shown.
+    // Case 4: Shape tool reselect opens its popover.
     const shapeBtn = toolbar.toolButtons.get('shape');
     expect(shapeBtn).toBeDefined();
-    // First click selects silently
     shapeBtn!.trigger('click');
-    expect(stylePanel!.hasClass('is-hidden')).toBe(true);
-    // Second click opens it
+    expect(toolbar.shapeOptionsPopover.isOpen).toBe(false);
     shapeBtn!.trigger('click');
     expect(toolbar.shapeOptionsPopover.isOpen).toBe(true);
-    expect(stylePanel!.hasClass('is-hidden')).toBe(true);
 });
 
-test('Toolbar style panel controls thickness and pattern updates', () => {
+test('Pattern popover updates the engine pattern and the toolbar toggle icon', () => {
     const mockPlugin = createMockPlugin();
     const toolbarEl = new MockElement('div');
     const focusedEngineRef = new FocusedEngineRef();
@@ -433,64 +417,21 @@ test('Toolbar style panel controls thickness and pattern updates', () => {
 
     focusedEngineRef.set(engine);
     const toolbar = new Toolbar(toolbarEl as any, focusedEngineRef, mockPlugin);
-    
-    // Thickness slider interaction
-    toolbar.thicknessSlider.value = '10';
-    toolbar.thicknessSlider.trigger('input');
-    expect(engine.getToolSize('pen')).toBe(10);
 
-    // Pattern picker interaction
-    const patternBtn = toolbar.patternButtons.get('dashed');
-    expect(patternBtn).toBeDefined();
-    patternBtn!.trigger('click', { preventDefault: vi.fn(), stopPropagation: vi.fn() });
+    // Open the pattern popover from the toolbar toggle
+    toolbar.patternToggleBtn.trigger('click', { preventDefault: vi.fn(), stopPropagation: vi.fn() });
+    expect(toolbar.patternPopover.isOpen).toBe(true);
+
+    // Click the "dashed" pattern button inside the popover
+    const patternRow = toolbar.patternPopover.el.children.find(c => c.hasClass('pattern-row'));
+    expect(patternRow).toBeDefined();
+    const dashedBtn = patternRow!.children.find(c => c.attributes.get('data-pattern') === 'dashed');
+    expect(dashedBtn).toBeDefined();
+    dashedBtn!.trigger('click', { preventDefault: vi.fn(), stopPropagation: vi.fn() });
+
     expect(engine.currentPattern).toBe('dashed');
-});
-
-test('Toolbar style panel validates hex color inputs', () => {
-    const mockPlugin = createMockPlugin();
-    const toolbarEl = new MockElement('div');
-    const focusedEngineRef = new FocusedEngineRef();
-    const engine = new MockInkEngine();
-
-    focusedEngineRef.set(engine);
-    const toolbar = new Toolbar(toolbarEl as any, focusedEngineRef, mockPlugin);
-
-    // Invalid Hex input
-    toolbar.hexInput.value = 'invalid';
-    toolbar.hexInput.trigger('input');
-    expect(toolbar.hexInput.hasClass('is-invalid')).toBe(true);
-
-    // Valid Hex input
-    toolbar.hexInput.value = 'ff5500';
-    toolbar.hexInput.trigger('input');
-    expect(toolbar.hexInput.hasClass('is-invalid')).toBe(false);
-    expect(engine.toolContext.currentColor).toBe('#ff5500');
-});
-
-test('Toolbar style panel handles saved swatches clicks and long-press', () => {
-    const mockPlugin = createMockPlugin();
-    const toolbarEl = new MockElement('div');
-    const focusedEngineRef = new FocusedEngineRef();
-    const engine = new MockInkEngine();
-
-    focusedEngineRef.set(engine);
-    const toolbar = new Toolbar(toolbarEl as any, focusedEngineRef, mockPlugin);
-
-    // Initial saved swatches are empty
-    expect(mockPlugin.settings.savedSwatches).toEqual(['', '', '', '', '']);
-
-    // Trigger long-press on slot 0 to save active color (#1a1a1a)
-    vi.useFakeTimers();
-    const slot0 = toolbar.savedSwatchesEl.children[0];
-    slot0.trigger('pointerdown');
-    
-    // Fast forward long press threshold
-    vi.advanceTimersByTime(600);
-    expect(mockPlugin.settings.savedSwatches[0]).toBe('#1a1a1a');
-    expect(mockPlugin.saveSettings).toHaveBeenCalled();
-
-    // Reset timers
-    vi.useRealTimers();
+    // The toolbar toggle icon follows the active pattern via syncToolState
+    expect(toolbar.patternToggleBtn.innerHTML).toContain('stroke-dasharray="4,4"');
 });
 
 test('Toolbar updates recent colors when triggered strictly via recent colors changed event', () => {
@@ -646,13 +587,12 @@ test('Toolbar handles Click & Closure Gating Matrix (Milestone 4.2.3)', () => {
     // Single click (simulated via click or pointerup)
     penBtn!.trigger('click', { preventDefault: vi.fn(), stopPropagation: vi.fn() });
     expect(engine.getToolName()).toBe('pen');
-    expect(toolbar.stylePanelEl.hasClass('is-hidden')).toBe(true); // Must NOT reveal options panel
+    expect(toolbar.penOptionsPopover.isOpen).toBe(false); // Must NOT reveal options popover
 
     // Second click (when tool is already selected) opens the menu
     penBtn!.trigger('click', { preventDefault: vi.fn(), stopPropagation: vi.fn() });
     expect(engine.getToolName()).toBe('pen');
     expect(toolbar.penOptionsPopover.isOpen).toBe(true); // Second click opens the compact popover
-    expect(toolbar.stylePanelEl.hasClass('is-hidden')).toBe(true);
 
     // Third click (when tool is selected and menu is open) hides it
     penBtn!.trigger('click', { preventDefault: vi.fn(), stopPropagation: vi.fn() });

@@ -17,6 +17,25 @@ import { StrokePattern } from '../model/ElementStyle';
 import { registerDefaultShapes } from '../shapes/registerDefaultShapes';
 import { ShapeTool } from '../tools/ShapeTool';
 import { getElementCssSize } from '../utils/dom';
+import { PenProfile } from '../model/PenProfile';
+import { PenProfileRegistry } from '../model/PenProfileRegistry';
+
+/**
+ * Resolves the persisted profile selections into registry profiles.
+ * Ignores ids that are unset, unknown, or belong to the wrong tool type.
+ */
+export function restoreProfilesFromSettings(
+    settings: Pick<ApoloCanvasSettings, 'activePenProfileId' | 'activeHighlighterProfileId'>
+): { pen?: PenProfile; highlighter?: PenProfile } {
+    const pen = settings.activePenProfileId ? PenProfileRegistry.get(settings.activePenProfileId) : undefined;
+    const highlighter = settings.activeHighlighterProfileId
+        ? PenProfileRegistry.get(settings.activeHighlighterProfileId)
+        : undefined;
+    return {
+        pen: pen?.toolType === 'pen' ? pen : undefined,
+        highlighter: highlighter?.toolType === 'highlighter' ? highlighter : undefined
+    };
+}
 
 
 
@@ -104,6 +123,19 @@ export class InkEngine {
         this.penStyle = { ...DEFAULT_PEN_STYLE };
         this.eraserSize = DEFAULT_ERASER_SIZE;
 
+        // Restore the last-used pen/highlighter profiles across reloads.
+        const restored = restoreProfilesFromSettings(this.settings);
+        if (restored.pen) {
+            this.activePenProfileId = restored.pen.id;
+            this.toolSizes.set('pen', restored.pen.baseWidth);
+            this.penSmoothing = restored.pen.baseSmoothing;
+        }
+        if (restored.highlighter) {
+            this.activeHighlighterProfileId = restored.highlighter.id;
+            this.toolSizes.set('highlighter', restored.highlighter.baseWidth);
+            this.highlighterSmoothing = restored.highlighter.baseSmoothing;
+        }
+
         // Create history manager
         this.history = new HistoryManager(100);
 
@@ -113,6 +145,7 @@ export class InkEngine {
 
         // Create renderer
         this.renderer = new Renderer(container, pageWidth, pageHeight);
+        this.renderer.setSettings(this.settings);
 
         // Create selection & clipboard managers
         this.selectionManager = new SelectionManager(this.page, this.history, {

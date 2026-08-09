@@ -83,12 +83,6 @@ export default class InkPlugin extends Plugin {
         this.toolbarEl = targetContainer.createDiv('ink-global-toolbar');
         this.globalToolbar = new Toolbar(this.toolbarEl, this.focusedEngineRef, this);
 
-        this.registerEvent(
-            this.app.workspace.on('layout-change', () => {
-                this.globalToolbar.updateVisibilityMode();
-            })
-        );
-
         // Create cache worker
         this.cacheWorker = new GraphCacheWorker(this.app);
 

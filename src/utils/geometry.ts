@@ -10,15 +10,8 @@ export interface Point {
 export type Vec2 = Point;
 
 /** A rectangle defined by position and size. */
-export interface Rect {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-}
-
 /** Squared distance between two points (avoids sqrt for performance). */
-export function distanceSquared(a: Point, b: Point): number {
+function distanceSquared(a: Point, b: Point): number {
     const dx = a.x - b.x;
     const dy = a.y - b.y;
     return dx * dx + dy * dy;
@@ -27,60 +20,6 @@ export function distanceSquared(a: Point, b: Point): number {
 /** Euclidean distance between two points. */
 export function distance(a: Point, b: Point): number {
     return Math.sqrt(distanceSquared(a, b));
-}
-
-/** Check if a point is inside a rectangle. */
-export function pointInRect(
-    point: Point,
-    x: number,
-    y: number,
-    w: number,
-    h: number
-): boolean {
-    return point.x >= x && point.x <= x + w && point.y >= y && point.y <= y + h;
-}
-
-/** Check if two rectangles intersect. */
-export function rectsIntersect(a: Rect, b: Rect): boolean {
-    return (
-        a.x < b.x + b.width &&
-        a.x + a.width > b.x &&
-        a.y < b.y + b.height &&
-        a.y + a.height > b.y
-    );
-}
-
-/**
- * Check if a point is within `threshold` distance of a line segment.
- * Used for hit-testing strokes.
- */
-export function pointNearSegment(
-    point: Point,
-    segA: Point,
-    segB: Point,
-    threshold: number
-): boolean {
-    const dx = segB.x - segA.x;
-    const dy = segB.y - segA.y;
-    const lenSq = dx * dx + dy * dy;
-
-    if (lenSq === 0) {
-        // Segment is a single point
-        return distanceSquared(point, segA) <= threshold * threshold;
-    }
-
-    // Project point onto line, clamped to segment
-    let t = ((point.x - segA.x) * dx + (point.y - segA.y) * dy) / lenSq;
-    t = Math.max(0, Math.min(1, t));
-
-    const projX = segA.x + t * dx;
-    const projY = segA.y + t * dy;
-
-    const distSq =
-        (point.x - projX) * (point.x - projX) +
-        (point.y - projY) * (point.y - projY);
-
-    return distSq <= threshold * threshold;
 }
 
 /**
@@ -106,34 +45,6 @@ export function pointInPolygon(point: Point, polygon: Point[]): boolean {
     return inside;
 }
 
-/**
- * Compute the axis-aligned bounding box of a set of points.
- * Points are arrays where index 0 is x and index 1 is y.
- */
-export function getBoundsOfPoints(points: number[][]): Rect {
-    if (points.length === 0) {
-        return { x: 0, y: 0, width: 0, height: 0 };
-    }
-
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-
-    for (const p of points) {
-        if (p[0] < minX) minX = p[0];
-        if (p[1] < minY) minY = p[1];
-        if (p[0] > maxX) maxX = p[0];
-        if (p[1] > maxY) maxY = p[1];
-    }
-
-    return {
-        x: minX,
-        y: minY,
-        width: maxX - minX,
-        height: maxY - minY,
-    };
-}
 
 /**
  * Given a set of strokes and a lasso polygon, returns the IDs of all strokes
@@ -276,7 +187,33 @@ export interface BakeableShape {
     rotation?: number;
 }
 
-export function doLineSegmentsIntersect(p1: Vec2, p2: Vec2, p3: Vec2, p4: Vec2): boolean {
+/** Axis-aligned bounding box of a set of [x, y] points. */
+function getBoundsOfPoints(points: number[][]): { x: number; y: number; width: number; height: number } {
+    if (points.length === 0) {
+        return { x: 0, y: 0, width: 0, height: 0 };
+    }
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    for (const p of points) {
+        if (p[0] < minX) minX = p[0];
+        if (p[1] < minY) minY = p[1];
+        if (p[0] > maxX) maxX = p[0];
+        if (p[1] > maxY) maxY = p[1];
+    }
+
+    return {
+        x: minX,
+        y: minY,
+        width: maxX - minX,
+        height: maxY - minY,
+    };
+}
+
+function doLineSegmentsIntersect(p1: Vec2, p2: Vec2, p3: Vec2, p4: Vec2): boolean {
     const cross = (a: Vec2, b: Vec2, c: Vec2) => (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
     const onSegment = (p: Vec2, q: Vec2, r: Vec2) =>
         r.x >= Math.min(p.x, q.x) && r.x <= Math.max(p.x, q.x) &&

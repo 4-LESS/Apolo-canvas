@@ -1,26 +1,12 @@
-import { App, setIcon, Notice } from 'obsidian';
+import { setIcon, Notice } from 'obsidian';
 import type { Toolbar } from '../../Toolbar';
 import { PenProfileRegistry } from '../../../model/PenProfileRegistry';
 import { SavedToolConfig } from '../../../plugin/Settings';
-import { parseColor, serializeColor } from '../colorUtils';
-import { PencilCasePresetNameModal } from './PencilCaseDrawer';
+import { isLightColor } from '../colorUtils';
+import { PencilCasePresetNameModal } from '../../modals/PencilCasePresetNameModal';
+import { addClass, removeClass, toggleClass } from '../../../utils/dom';
 import { FloatingDragController } from '../FloatingDragController';
-
-/**
- * Determines whether a hex color is light or dark for SVG stroke contrast.
- */
-function isLightColor(hex: string): boolean {
-    let clean = hex.trim();
-    if (clean.startsWith('#')) clean = clean.substring(1);
-    if (clean.length >= 6) {
-        const r = parseInt(clean.substring(0, 2), 16);
-        const g = parseInt(clean.substring(2, 4), 16);
-        const b = parseInt(clean.substring(4, 6), 16);
-        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-        return brightness > 140;
-    }
-    return false;
-}
+import { applyToolConfig, captureToolConfig, getActiveCaseProfile } from '../pencilCasePresets';
 
 /**
  * Global Draggable Horizontal Pencil Case Bar.
@@ -154,47 +140,7 @@ export class PencilCaseBar {
     }
 
     public applyConfig(config: SavedToolConfig): void {
-        const engine = this.toolbar.focusedEngineRef.get();
-        if (!engine) return;
-
-        engine.setTool(config.toolType);
-        engine.setToolSize(config.toolType, config.strokeWidth);
-
-        if (config.toolType === 'pen') {
-            engine.setPenSmoothing?.(config.smoothingLevel);
-        } else {
-            engine.setHighlighterSmoothing?.(config.smoothingLevel);
-        }
-
-        engine.currentPattern = config.strokePattern;
-        engine.activeProfileId = config.profileId;
-
-        const toolType = config.toolType;
-        const { palette } = this.toolbar.getPaletteData(toolType);
-        let colorIndex = palette.colors.findIndex(
-            (c: string) => c.toLowerCase() === config.color.toLowerCase()
-        );
-
-        if (colorIndex === -1) {
-            const activeIdx = toolType === 'highlighter'
-                ? (this.plugin.settings.activeHighlighterColorIndex ?? 0)
-                : (this.plugin.settings.activePenColorIndex ?? 0);
-            palette.colors[activeIdx] = config.color;
-            colorIndex = activeIdx;
-        }
-
-        if (toolType === 'highlighter') {
-            this.plugin.settings.activeHighlighterColorIndex = colorIndex;
-            this.plugin.settings.lastHighlighterColorHex = config.color;
-        } else {
-            this.plugin.settings.activePenColorIndex = colorIndex;
-            this.plugin.settings.lastPenColorHex = config.color;
-        }
-
-        engine.setPenColor(config.color);
-        engine.requestFullRender();
-        this.plugin.saveSettings();
-        this.toolbar.syncToolState();
+        applyToolConfig(this.toolbar, this.plugin, config);
     }
 
     private handleSaveCurrent(): void {
@@ -210,22 +156,9 @@ export class PencilCaseBar {
             return;
         }
 
-        const activeProfileId = (engine as any).activeProfileId || '';
-        const strokeWidth = engine.getToolSize(toolType) ?? 4;
-        const smoothingLevel = toolType === 'pen'
-            ? (engine.getPenSmoothing?.() ?? 0.3)
-            : (engine.getHighlighterSmoothing?.() ?? 0.55);
-        const strokePattern = engine.currentPattern ?? 'solid';
+        const captured = captureToolConfig(engine, toolType);
 
-        const rawColor = (engine as any).toolContext?.currentColor ?? '#000000';
-        const parsed = parseColor(rawColor);
-        const color = serializeColor(parsed.rgb, parsed.alpha, toolType === 'highlighter');
-
-        const activeProfileIdSetting = this.plugin.settings.activePencilCaseProfileId;
-        const profile = this.plugin.settings.pencilCaseProfiles.find(
-            (p: any) => p.id === activeProfileIdSetting
-        );
-
+        const profile = getActiveCaseProfile(this.plugin.settings);
         if (!profile) {
             new Notice('No active pencil case profile found.');
             return;
@@ -238,18 +171,12 @@ export class PencilCaseBar {
 
         const app = this.plugin.app || (globalThis as any).app;
         const modal = new PencilCasePresetNameModal(app, async (name) => {
-            const newConfig: SavedToolConfig = {
+            profile.configs.push({
                 id: `tool-preset-${Date.now()}`,
-                name: name,
+                name,
                 toolType: toolType as 'pen' | 'highlighter',
-                profileId: activeProfileId,
-                strokeWidth: strokeWidth,
-                smoothingLevel: smoothingLevel,
-                strokePattern: strokePattern,
-                color: color
-            };
-
-            profile.configs.push(newConfig);
+                ...captured
+            });
             await this.plugin.saveSettings();
             this.syncValues();
             this.toolbar.syncToolState();
@@ -276,22 +203,7 @@ export class PencilCaseBar {
         }
     }
 
-    private addClass(el: HTMLElement, cls: string): void {
-        if (!el) return;
-        if (typeof (el as any).addClass === 'function') (el as any).addClass(cls);
-        else if (el.classList) el.classList.add(cls);
-    }
-
-    private removeClass(el: HTMLElement, cls: string): void {
-        if (!el) return;
-        if (typeof (el as any).removeClass === 'function') (el as any).removeClass(cls);
-        else if (el.classList) el.classList.remove(cls);
-    }
-
-    private toggleClass(el: HTMLElement, cls: string, value: boolean): void {
-        if (!el) return;
-        if (typeof (el as any).toggleClass === 'function') (el as any).toggleClass(cls, value);
-        else if (el.classList && typeof el.classList.toggle === 'function') el.classList.toggle(cls, value);
-        else if (el.classList) value ? el.classList.add(cls) : el.classList.remove(cls);
-    }
+    private addClass(el: HTMLElement, cls: string): void { addClass(el, cls); }
+    private removeClass(el: HTMLElement, cls: string): void { removeClass(el, cls); }
+    private toggleClass(el: HTMLElement, cls: string, value: boolean): void { toggleClass(el, cls, value); }
 }

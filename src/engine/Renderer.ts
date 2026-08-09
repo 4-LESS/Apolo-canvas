@@ -116,10 +116,30 @@ export class Renderer {
      * logic, two copies that could silently drift. Pulled into one place.
      * ---------------------------------------------------------------- */
 
-    /** Resolves the active visual theme for a page, falling back to a background-derived default. */
+    /** Plugin settings reference for global theme resolution (set by the engine). */
+    private settings?: { themeMode?: string };
+
+    setSettings(settings: { themeMode?: string } | undefined): void {
+        this.settings = settings;
+    }
+
+    /**
+     * Resolves the active visual theme for a page.
+     * Precedence: explicit per-page theme → global `themeMode` setting
+     * ('dark' always dark; 'auto' follows Obsidian's dark mode) →
+     * background-derived default.
+     */
     private resolveTheme(page: InkPage): string {
-        return (page as any).theme
-            || (page.background === 'grid' ? 'grid-mesh' : page.background === 'dotted' ? 'isometric-dots' : 'light-paper');
+        const explicit = (page as any).theme;
+        if (explicit) return explicit;
+
+        const mode = this.settings?.themeMode;
+        const obsidianIsDark = typeof document !== 'undefined' && !!document.body?.classList?.contains('theme-dark');
+        if (mode === 'dark' || (mode === 'auto' && obsidianIsDark)) {
+            return 'dark-canvas';
+        }
+
+        return page.background === 'grid' ? 'grid-mesh' : page.background === 'dotted' ? 'isometric-dots' : 'light-paper';
     }
 
     private getLinkRenderSettings(settings?: any): LinkRenderSettings {

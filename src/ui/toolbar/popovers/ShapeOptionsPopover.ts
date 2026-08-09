@@ -4,6 +4,7 @@ import { BasePopover } from '../BasePopover';
 import type { Toolbar } from '../../Toolbar';
 import { ShapeRegistry } from '../../../shapes/ShapeRegistry';
 import { ColorSwatchComponent } from '../components/ColorSwatchComponent';
+import { buildSectionHeader, buildSliderRow, buildToggleRow, SliderRowHandle, ToggleRowHandle } from '../components/controls';
 
 export class ShapeOptionsPopover extends BasePopover {
     private _activeEngine: InkEngine | null = null;
@@ -14,20 +15,20 @@ export class ShapeOptionsPopover extends BasePopover {
         this._activeEngine = engine;
     }
     private shapeGridButtons: Map<string, HTMLButtonElement> = new Map();
-    private thicknessValSpan!: HTMLSpanElement;
-    private thicknessSlider!: HTMLInputElement;
-    private fillCheckbox!: HTMLInputElement;
+    private thicknessRow!: SliderRowHandle;
+    private fillToggle!: ToggleRowHandle;
     private fillSwatchesComponent: ColorSwatchComponent | null = null;
     private fillSwatchesContainerEl!: HTMLDivElement;
     private fillSwatchesEl!: HTMLElement;
 
     constructor(parent: HTMLElement, plugin: any, private toolbar: Toolbar, dismissBoundary?: HTMLElement) {
         super(parent, plugin, 'ink-shape-options-popover', dismissBoundary);
+        this.ensureBuilt();
     }
 
     protected buildContent(): void {
         this.shapeGridButtons = new Map();
-        this.el.createDiv({ cls: 'ink-style-header', text: 'SHAPE' });
+        buildSectionHeader(this.el, 'SHAPE');
         const shapeGrid = this.el.createDiv({ cls: 'ink-shape-grid' });
         const shapes = ShapeRegistry.getAll();
 
@@ -52,74 +53,38 @@ export class ShapeOptionsPopover extends BasePopover {
             this.shapeGridButtons.set(def.id, btn);
         });
 
-        const thicknessRow = this.el.createDiv({ cls: 'ink-slider-row' });
-        const thicknessHeader = thicknessRow.createDiv({ cls: 'ink-style-header-row' });
-        thicknessHeader.createDiv({ cls: 'ink-style-header', text: 'THICKNESS' });
-
-        const thicknessInputRow = thicknessRow.createDiv({ cls: 'ink-slider-input-row' });
-        this.thicknessSlider = thicknessInputRow.createEl('input', {
-            cls: 'ink-thickness-slider',
-            attr: { type: 'range', min: '1', max: '30', step: '1', value: '3' }
-        }) as HTMLInputElement;
-        this.thicknessValSpan = thicknessInputRow.createSpan({ cls: 'ink-popover-size-val', text: '3px' });
-
-        const updateThickness = (e?: Event) => {
-            e?.stopPropagation?.();
-            const slider = (e?.target as HTMLInputElement) || this.thicknessSlider;
-            const val = Number(slider?.value);
-            if (isNaN(val)) return;
-            if (this.thicknessValSpan) this.thicknessValSpan.textContent = `${val}px`;
-            if (this.activeEngine) {
-                this.activeEngine.setToolSize('shape', val);
-                this.activeEngine.requestFullRender();
+        this.thicknessRow = buildSliderRow(this.el, {
+            label: 'THICKNESS',
+            min: 1, max: 30, step: 1, value: 3,
+            onInput: (val) => {
+                if (this.activeEngine) {
+                    this.activeEngine.setToolSize('shape', val);
+                    this.activeEngine.requestFullRender();
+                }
             }
-        };
-
-        this.thicknessSlider.addEventListener('input', updateThickness);
-        this.thicknessSlider.addEventListener('change', updateThickness);
-        this.thicknessSlider.addEventListener('pointerdown', (e) => e.stopPropagation());
-
-        const fillSwitchRow = this.el.createDiv({ cls: 'option-switch-row' });
-        fillSwitchRow.createEl('label', {
-            attr: { for: 'ink-popover-shape-fill-checkbox' },
-            text: 'Fill Shape'
         });
-        this.fillCheckbox = fillSwitchRow.createEl('input', {
-            cls: 'ink-option-checkbox',
-            attr: { type: 'checkbox', id: 'ink-popover-shape-fill-checkbox' }
-        }) as HTMLInputElement;
+
+        this.fillToggle = buildToggleRow(this.el, {
+            id: 'ink-popover-shape-fill-checkbox',
+            label: 'Fill Shape',
+            onChange: (isChecked) => {
+                if (this.activeEngine) {
+                    const currentColor = this.activeEngine.toolContext.currentColor || '#1a1a1a';
+                    this.activeEngine.currentFillColor = isChecked ? currentColor : 'transparent';
+                    this.activeEngine.requestFullRender();
+                }
+                if (this.fillSwatchesEl) {
+                    this.fillSwatchesEl.classList.toggle('is-hidden', !isChecked);
+                }
+            }
+        });
 
         this.fillSwatchesContainerEl = this.el.createDiv({ cls: 'ink-popover-shape-fill-swatches-container' });
-
-        this.fillCheckbox.addEventListener('change', () => {
-            const isChecked = this.fillCheckbox.checked;
-            if (this.activeEngine) {
-                const currentColor = this.activeEngine.toolContext.currentColor || '#1a1a1a';
-                this.activeEngine.currentFillColor = isChecked ? currentColor : 'transparent';
-                this.activeEngine.requestFullRender();
-            }
-            if (isChecked && this.fillSwatchesEl) {
-                this.fillSwatchesEl.classList.remove('is-hidden');
-            } else if (this.fillSwatchesEl) {
-                this.fillSwatchesEl.classList.add('is-hidden');
-            }
-        });
     }
 
     public showShapeOptions(anchorBtn: HTMLElement, engine: InkEngine): void {
         this.activeEngine = engine;
-
-        // 1. Open card immediately
-        this.show(anchorBtn);
-
-        // 2. Populate contents safely inside try-catch block
-        try {
-            this.populateShapeContent(engine);
-        } catch (err) {
-            console.error('[Apolo Canvas] Error populating shape options popover:', err);
-        }
-
-        this.reposition();
+        this.showWithContent(anchorBtn, () => this.populateShapeContent(engine));
     }
 
     private populateShapeContent(engine: InkEngine): void {
@@ -145,14 +110,8 @@ export class ShapeOptionsPopover extends BasePopover {
         const isFilled = fillColor !== 'transparent' && fillColor !== 'none';
 
         this.highlightActiveShape(currentShape);
-        if (this.thicknessSlider && this.thicknessValSpan) {
-            this.thicknessSlider.value = String(thickness);
-            this.thicknessValSpan.textContent = `${thickness}px`;
-        }
-
-        if (this.fillCheckbox) {
-            this.fillCheckbox.checked = isFilled;
-        }
+        this.thicknessRow?.setValue(thickness);
+        this.fillToggle?.setChecked(isFilled);
 
         if (isFilled && this.fillSwatchesEl) {
             this.fillSwatchesEl.classList.remove('is-hidden');

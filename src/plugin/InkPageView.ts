@@ -9,7 +9,6 @@ import { FocusedEngineRef } from '../engine/FocusedEngineRef';
 
 import { SelectionMenu } from '../ui/SelectionMenu';
 import { PasteMenu } from '../ui/PasteMenu';
-import { ConfigMenu } from '../ui/ConfigMenu';
 import { CanvasConfigSheetModal } from '../ui/CanvasConfigSheet';
 import { Point, clientToPageCoords } from '../utils/geometry';
 import { generateBlockId } from '../utils/id';
@@ -24,7 +23,6 @@ export class InkPageView extends MarkdownRenderChild {
     private canvasContainer: HTMLElement | null = null;
     private resizeObserver: ResizeObserver | null = null;
     private saveDebounced: ((() => void) & { cancel: () => void }) | null = null;
-    private configMenu: ConfigMenu | null = null;
     private outsideActiveListener: ((e: PointerEvent) => void) | null = null;
     private focusedEngineRef: FocusedEngineRef;
     private canvas!: HTMLCanvasElement;
@@ -264,8 +262,6 @@ export class InkPageView extends MarkdownRenderChild {
             this.plugin.activeEngines.delete(this.engine);
             this.engine.destroy();
         }
-        this.configMenu?.hide();
-        this.configMenu = null;
         this.fullscreenToggleEl?.remove();
         this.fullscreenToggleEl = null;
         this.canvasActionsBtnEl?.remove();

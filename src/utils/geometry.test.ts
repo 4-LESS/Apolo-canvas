@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { pointInPolygon, strokesInsidePolygon, Point, clientToPageCoords, doLineSegmentsIntersect, bakeShapeToPolyline, getDistanceBetweenSegments } from './geometry';
+import { pointInPolygon, strokesInsidePolygon, Point, clientToPageCoords, bakeShapeToPolyline, getDistanceBetweenSegments } from './geometry';
 import { Stroke } from '../model/Stroke';
 
 test('pointInPolygon', () => {
@@ -58,13 +58,6 @@ test('clientToPageCoords clamping', () => {
     const coords2 = clientToPageCoords(event2, canvas, 800, 1000);
     expect(coords2.x).toBe(800);
     expect(coords2.y).toBe(100);
-});
-
-test('doLineSegmentsIntersect', () => {
-    expect(doLineSegmentsIntersect({x: 0, y: 0}, {x: 10, y: 10}, {x: 0, y: 10}, {x: 10, y: 0})).toBe(true);
-    expect(doLineSegmentsIntersect({x: 0, y: 0}, {x: 0, y: 10}, {x: 2, y: 0}, {x: 2, y: 10})).toBe(false);
-    expect(doLineSegmentsIntersect({x: 0, y: 0}, {x: 5, y: 5}, {x: 6, y: 6}, {x: 10, y: 10})).toBe(false);
-    expect(doLineSegmentsIntersect({x: 0, y: 5}, {x: 10, y: 5}, {x: 5, y: 5}, {x: 5, y: 10})).toBe(true);
 });
 
 test('bakeShapeToPolyline', () => {

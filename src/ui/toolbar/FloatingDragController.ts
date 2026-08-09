@@ -1,3 +1,5 @@
+import { addClass, removeClass } from '../../utils/dom';
+
 export interface DragControllerOptions {
     targetEl: HTMLElement;
     otherElementGetter?: () => HTMLElement | null;
@@ -65,8 +67,12 @@ export class FloatingDragController {
             this.initialLeft = rect.left - parentRect.left;
             this.initialTop = rect.top - parentRect.top;
 
-            // Compute dynamic movement threshold based on devicePixelRatio (zero hardcoded static numbers)
-            const thresholdPx = Math.max(4, Math.round((window.devicePixelRatio || 1) * 2));
+            // Movement threshold before a press becomes a drag. Finger and stylus
+            // input jitters several pixels during a plain tap, so they get a much
+            // larger slop than a mouse — this is what keeps taps from moving the bar.
+            const thresholdPx = e.pointerType === 'mouse'
+                ? Math.max(4, Math.round((window.devicePixelRatio || 1) * 2))
+                : 10;
 
             // Long-press timer for releasing edge dock anchor
             if (this.isAnchoredToEdge) {
@@ -83,10 +89,24 @@ export class FloatingDragController {
 
                 if (!this.isDragging && dist > thresholdPx) {
                     this.isDragging = true;
+                    // Docked-position classes carry their own coordinates and would
+                    // fight the inline geometry written during the drag.
+                    this.removeClass(el, 'is-edge-docked');
+                    this.removeClass(el, 'is-edge-docked-left');
+                    this.removeClass(el, 'is-edge-docked-right');
+                    this.removeClass(el, 'is-edge-docked-top');
+                    this.removeClass(el, 'is-edge-docked-bottom');
                     el.style.transform = 'none';
                     el.style.bottom = 'auto';
                     el.style.right = 'auto';
                     this.addClass(el, 'is-dragging');
+
+                    // Capture the pointer on the bar itself: from here on, pointer
+                    // events retarget to the bar, so a drag that ends on top of a
+                    // tool button can never fire that button's pointerup handler.
+                    if (typeof el.setPointerCapture === 'function') {
+                        try { el.setPointerCapture(moveEvent.pointerId); } catch { /* detached or already captured */ }
+                    }
 
                     if (this.longPressTimer) {
                         clearTimeout(this.longPressTimer);
@@ -116,6 +136,9 @@ export class FloatingDragController {
                     upEvent.stopPropagation();
                     this.isDragging = false;
                     this.removeClass(el, 'is-dragging');
+                    if (typeof el.releasePointerCapture === 'function') {
+                        try { el.releasePointerCapture(upEvent.pointerId); } catch { /* already released */ }
+                    }
 
                     // Intercept upcoming click event on buttons
                     const captureClick = (clickEvent: MouseEvent) => {
@@ -267,22 +290,6 @@ export class FloatingDragController {
         this.onOrientationChange?.(orientation);
     }
 
-    private addClass(el: HTMLElement, cls: string): void {
-        if (!el) return;
-        if (typeof (el as any).addClass === 'function') (el as any).addClass(cls);
-        else if (el.classList) el.classList.add(cls);
-    }
-
-    private removeClass(el: HTMLElement, cls: string): void {
-        if (!el) return;
-        if (typeof (el as any).removeClass === 'function') (el as any).removeClass(cls);
-        else if (el.classList) el.classList.remove(cls);
-    }
-
-    private toggleClass(el: HTMLElement, cls: string, value: boolean): void {
-        if (!el) return;
-        if (typeof (el as any).toggleClass === 'function') (el as any).toggleClass(cls, value);
-        else if (el.classList && typeof el.classList.toggle === 'function') el.classList.toggle(cls, value);
-        else if (el.classList) value ? el.classList.add(cls) : el.classList.remove(cls);
-    }
+    private addClass(el: HTMLElement, cls: string): void { addClass(el, cls); }
+    private removeClass(el: HTMLElement, cls: string): void { removeClass(el, cls); }
 }

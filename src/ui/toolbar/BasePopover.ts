@@ -1,3 +1,5 @@
+import { addClass, removeClass } from '../../utils/dom';
+
 export abstract class BasePopover {
     public el: HTMLElement;
     public isOpen = false;
@@ -21,10 +23,23 @@ export abstract class BasePopover {
     ) {
         this.plugin = plugin;
         this.el = overlayParent.createDiv({ cls: `ink-popover ${className} is-hidden` });
-        this.buildContent();
     }
 
     protected abstract buildContent(): void;
+
+    private built = false;
+
+    /**
+     * Builds the popover DOM exactly once. Called at the end of each subclass
+     * constructor (never from this base constructor: subclass fields and
+     * parameter properties are not yet initialized while super() is running,
+     * so a virtual buildContent() call here would be clobbered or crash).
+     */
+    protected ensureBuilt(): void {
+        if (this.built) return;
+        this.built = true;
+        this.buildContent();
+    }
 
     protected onOutsidePointerDown(): void {
         // Optional hook for popovers with external state to reset.
@@ -34,7 +49,20 @@ export abstract class BasePopover {
         this.isOpen ? this.hide() : this.show(anchorEl);
     }
 
+    /**
+     * Populate-then-show: runs `populate` BEFORE the popover is measured and
+     * aligned, so first-open positioning uses the real content dimensions
+     * instead of the empty-element fallback. If `populate` throws, the popover
+     * simply stays hidden rather than appearing stranded at a stale position.
+     */
+    public showWithContent(anchorEl: HTMLElement, populate: () => void): void {
+        this.ensureBuilt();
+        populate();
+        this.show(anchorEl);
+    }
+
     public show(anchorEl: HTMLElement): void {
+        this.ensureBuilt();
         const isInsideModal = typeof anchorEl.closest === 'function' && (anchorEl.closest('.modal') !== null || anchorEl.closest('.ink-manager-palette-row') !== null);
         this.mountedInModal = isInsideModal;
         if (isInsideModal && typeof document !== 'undefined' && document.body) {
@@ -60,6 +88,12 @@ export abstract class BasePopover {
         this.addClass(this.el, 'is-hidden');
         this.isOpen = false;
         this.activeAnchor = null;
+        // Reset inline geometry so a later un-hide can never render the popover
+        // at a stale position (e.g. left:0 full-height stretch).
+        this.el.style.left = '';
+        this.el.style.top = '';
+        this.el.style.bottom = '';
+        this.el.style.right = '';
         this.teardownOutsideClickGuard();
         if (this.el.parentElement !== this.overlayParent) {
             if (typeof this.overlayParent.appendChild === 'function') {
@@ -82,15 +116,8 @@ export abstract class BasePopover {
         this.el.remove();
     }
 
-    protected addClass(el: HTMLElement, cls: string): void {
-        if (typeof el.addClass === 'function') el.addClass(cls);
-        else el.classList.add(cls);
-    }
-
-    protected removeClass(el: HTMLElement, cls: string): void {
-        if (typeof el.removeClass === 'function') el.removeClass(cls);
-        else el.classList.remove(cls);
-    }
+    protected addClass(el: HTMLElement, cls: string): void { addClass(el, cls); }
+    protected removeClass(el: HTMLElement, cls: string): void { removeClass(el, cls); }
 
     protected alignToAnchor(anchorEl: HTMLElement): void {
         const parent = this.el.parentElement;
@@ -98,6 +125,9 @@ export abstract class BasePopover {
 
         const isViewportOverlay = typeof document !== 'undefined' && parent === document.body;
         this.el.style.position = isViewportOverlay ? 'fixed' : 'absolute';
+        // alignToAnchor only ever writes left/top — clear any stale bottom/right.
+        this.el.style.bottom = '';
+        this.el.style.right = '';
         const parentRect = parent.getBoundingClientRect?.();
         const anchorRect = anchorEl.getBoundingClientRect?.();
         const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 800;

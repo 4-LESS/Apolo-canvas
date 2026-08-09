@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting, setIcon } from 'obsidian';
+﻿import { App, PluginSettingTab, Setting, setIcon } from 'obsidian';
 import type InkPlugin from './InkPlugin';
 import { BackgroundType } from '../model/InkPage';
 import { getThemeAccentHex } from '../utils/color';
@@ -34,7 +34,6 @@ export interface ApoloCanvasSettings {
     defaultPenSize: number;
     autoSaveDebounceMs: number;
     migrationComplete: boolean;
-    defaultBlockHeight: number; // legacy fallback
 
     // v0.3.6.6 settings
     defaultHeight: number;
@@ -43,7 +42,6 @@ export interface ApoloCanvasSettings {
     themeMode: string;
 
     // Hyperlinks settings
-    linkBackgroundColor: string;
     linkRenderColor: string;
     linkPadding: number;
     linkBorderRadius: number;
@@ -52,7 +50,6 @@ export interface ApoloCanvasSettings {
     linkBackgroundOpacity: number;
     penSmoothing: number;
     highlighterSmoothing: number;
-    savedSwatches: string[];
     recentColors: string[];
 
     // Swatch Sub-Managers
@@ -83,14 +80,12 @@ export const DEFAULT_SETTINGS: ApoloCanvasSettings = {
     defaultPenSize: 4,
     autoSaveDebounceMs: 2000,
     migrationComplete: false,
-    defaultBlockHeight: 600, // legacy fallback
 
     defaultHeight: 400,
     defaultBackground: 'grid',
     defaultGridSize: 20,
     themeMode: 'auto',
 
-    linkBackgroundColor: 'rgba(var(--interactive-accent-rgb), 0.25)',
     linkRenderColor: '#ffffff',
     linkPadding: 8,
     linkBorderRadius: 8,
@@ -99,7 +94,6 @@ export const DEFAULT_SETTINGS: ApoloCanvasSettings = {
     linkBackgroundOpacity: 0.25,
     penSmoothing: 0.3,
     highlighterSmoothing: 0.55,
-    savedSwatches: ['', '', '', '', ''],
     recentColors: [],
 
     penPalettes: [
@@ -252,17 +246,18 @@ export class ApoloCanvasSettingsTab extends PluginSettingTab {
         // Canvas Theme
         new Setting(containerEl)
             .setName('Canvas Theme')
-            .setDesc('Theme for the ink canvas rendering (Auto, Light, Dark, Custom).')
+            .setDesc('Default canvas rendering theme when a canvas has no explicit per-canvas theme. Auto follows Obsidian\'s light/dark mode.')
             .addDropdown((dropdown) =>
                 dropdown
                     .addOption('auto', 'Auto')
                     .addOption('light', 'Light')
                     .addOption('dark', 'Dark')
-                    .addOption('custom', 'Custom')
                     .setValue(this.plugin.settings.themeMode)
                     .onChange(async (value) => {
                         this.plugin.settings.themeMode = value;
                         await this.plugin.saveSettings();
+                        // Repaint every open canvas with the new theme
+                        this.plugin.activeEngines?.forEach((engine: any) => engine.requestFullRender?.());
                     })
             );
 
@@ -314,9 +309,9 @@ export class ApoloCanvasSettingsTab extends PluginSettingTab {
             .setDesc('Default dimensions preset for new full-page drawings.')
             .addDropdown((drop) =>
                 drop
-                    .addOption('A4', 'A4 (210×297mm)')
-                    .addOption('LETTER', 'Letter (216×279mm)')
-                    .addOption('A5', 'A5 (148×210mm)')
+                    .addOption('A4', 'A4 (210Ã—297mm)')
+                    .addOption('LETTER', 'Letter (216Ã—279mm)')
+                    .addOption('A5', 'A5 (148Ã—210mm)')
                     .setValue(this.plugin.settings.defaultPagePreset)
                     .onChange(async (value) => {
                         this.plugin.settings.defaultPagePreset = value;
@@ -538,7 +533,7 @@ export class ApoloCanvasSettingsTab extends PluginSettingTab {
                     this.plugin.settings.activePencilCaseProfileId = value;
                     await this.plugin.saveSettings();
                     this.display();
-                    this.plugin.globalToolbar?.pencilCaseDrawer?.syncValues();
+                    this.plugin.globalToolbar?.pencilCaseBar?.syncValues();
                 });
             });
 
@@ -561,7 +556,7 @@ export class ApoloCanvasSettingsTab extends PluginSettingTab {
                                     const opt = selectEl.querySelector(`option[value="${activeProfile.id}"]`);
                                     if (opt) opt.textContent = activeProfile.name;
                                 }
-                                this.plugin.globalToolbar?.pencilCaseDrawer?.syncValues();
+                                this.plugin.globalToolbar?.pencilCaseBar?.syncValues();
                             });
                     });
 
@@ -588,7 +583,7 @@ export class ApoloCanvasSettingsTab extends PluginSettingTab {
                         textInput.addEventListener('change', async () => {
                             config.name = textInput.value.trim() || 'My Preset';
                             await this.plugin.saveSettings();
-                            this.plugin.globalToolbar?.pencilCaseDrawer?.syncValues();
+                            this.plugin.globalToolbar?.pencilCaseBar?.syncValues();
                         });
 
                         // Delete button
@@ -602,7 +597,7 @@ export class ApoloCanvasSettingsTab extends PluginSettingTab {
                             activeProfile.configs = activeProfile.configs.filter(c => c.id !== config.id);
                             await this.plugin.saveSettings();
                             this.display();
-                            this.plugin.globalToolbar?.pencilCaseDrawer?.syncValues();
+                            this.plugin.globalToolbar?.pencilCaseBar?.syncValues();
                         });
                     });
                 }

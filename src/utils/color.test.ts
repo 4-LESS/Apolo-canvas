@@ -1,5 +1,5 @@
 import { expect, test, describe, beforeAll, afterAll } from 'vitest';
-import { hexToRgba, resolveColor, isValidHex, getLinkBackgroundColor } from './color';
+import { hexToRgba, resolveColor, getLinkBackgroundColor } from './color';
 
 describe('color utilities', () => {
     test('hexToRgba converts colors correctly', () => {
@@ -7,15 +7,6 @@ describe('color utilities', () => {
         expect(hexToRgba('#00ff00', 0.25)).toBe('rgba(0,255,0,0.25)');
         expect(hexToRgba('#fff', 1)).toBe('rgba(255,255,255,1)');
         expect(hexToRgba('#ff000080', 1)).toBe('rgba(255,0,0,0.502)');
-    });
-
-    test('isValidHex validates correctly', () => {
-        expect(isValidHex('#fff')).toBe(true);
-        expect(isValidHex('#ffffff')).toBe(true);
-        expect(isValidHex('#ffffffaa')).toBe(true);
-        expect(isValidHex('fff')).toBe(false);
-        expect(isValidHex('#ff')).toBe(false);
-        expect(isValidHex('#gggggg')).toBe(false);
     });
 
     test('resolveColor handles non-CSS variables directly', () => {

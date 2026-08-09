@@ -22,6 +22,8 @@ export class ColorSwatchComponent {
     private pointerDownListener: ((e: PointerEvent) => void) | null = null;
     private activeOnPointerUp: ((e: PointerEvent) => void) | null = null;
     private activeOnPointerCancel: ((e: PointerEvent) => void) | null = null;
+    // The element the transient pointerup/pointercancel listeners were attached to
+    private swipeListenerTarget: EventTarget | null = null;
 
     constructor(parent: HTMLElement, config: ColorSwatchComponentConfig, toolbar: Toolbar) {
         this.config = config;
@@ -151,7 +153,7 @@ export class ColorSwatchComponent {
             startTime = Date.now();
 
             const onPointerUp = (upEvent: PointerEvent) => {
-                this.cleanupTransientListeners(target);
+                this.cleanupTransientListeners();
 
                 const diffX = upEvent.clientX - startX;
                 const diffY = upEvent.clientY - startY;
@@ -184,11 +186,12 @@ export class ColorSwatchComponent {
             };
 
             const onPointerCancel = () => {
-                this.cleanupTransientListeners(target);
+                this.cleanupTransientListeners();
             };
 
             this.activeOnPointerUp = onPointerUp;
             this.activeOnPointerCancel = onPointerCancel;
+            this.swipeListenerTarget = target;
 
             target.addEventListener('pointerup', onPointerUp as EventListener, { passive: false });
             target.addEventListener('pointercancel', onPointerCancel as EventListener);
@@ -197,8 +200,8 @@ export class ColorSwatchComponent {
         strip.addEventListener('pointerdown', this.pointerDownListener);
     }
 
-    private cleanupTransientListeners(target?: any): void {
-        const t = target || ((typeof window !== 'undefined' && typeof window.addEventListener === 'function') ? window : this.dotsStripEl);
+    private cleanupTransientListeners(): void {
+        const t: any = this.swipeListenerTarget;
         if (this.activeOnPointerUp && t && typeof t.removeEventListener === 'function') {
             t.removeEventListener('pointerup', this.activeOnPointerUp);
             this.activeOnPointerUp = null;
@@ -207,6 +210,7 @@ export class ColorSwatchComponent {
             t.removeEventListener('pointercancel', this.activeOnPointerCancel);
             this.activeOnPointerCancel = null;
         }
+        this.swipeListenerTarget = null;
     }
 
     public shiftPalette(dir: 'prev' | 'next'): void {

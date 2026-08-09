@@ -1,6 +1,5 @@
-import { App, TFile, TFolder, normalizePath, Notice } from 'obsidian';
+import { App, TFile, TFolder, Notice } from 'obsidian';
 import { InkPage, PageData } from '../model/InkPage';
-import { InkDocument } from '../model/InkDocument';
 
 /**
  * Manages reading and writing ink data to the Obsidian vault.
@@ -105,59 +104,4 @@ export class InkFileManager {
         }
     }
 
-    // ── DEPRECATED METHODS ──
-
-    /** @deprecated Use loadPage instead */
-    async loadPageLegacy(notePath: string, pageFile: string): Promise<PageData | null> {
-        console.warn('loadPageLegacy is deprecated. Use loadPage instead.');
-        const pageId = pageFile.replace(/\.json$/i, '');
-        const page = await this.loadPage(pageId);
-        return page ? page.serialize() : null;
-    }
-
-    /** @deprecated Use savePage instead */
-    async savePageLegacy(notePath: string, pageFile: string, data: PageData): Promise<void> {
-        console.warn('savePageLegacy is deprecated. Use savePage instead.');
-        const page = InkPage.deserialize(data);
-        await this.savePage(page);
-    }
-
-    /** @deprecated Use loadPage instead */
-    async loadDocument(notePath: string): Promise<InkDocument | null> {
-        console.warn('loadDocument is deprecated. Retire InkDocument usage.');
-        return null;
-    }
-
-    /** @deprecated Use savePage instead */
-    async saveDocument(notePath: string, doc: InkDocument): Promise<void> {
-        console.warn('saveDocument is deprecated. Retire InkDocument usage.');
-        for (const page of doc.pages) {
-            await this.savePage(page);
-        }
-    }
-
-    /** @deprecated Use savePage instead */
-    async savePageOnly(notePath: string, page: InkPage, doc: InkDocument): Promise<void> {
-        console.warn('savePageOnly is deprecated. Retire InkDocument usage.');
-        await this.savePage(page);
-    }
-
-    /** @deprecated */
-    async hasInkData(notePath: string): Promise<boolean> {
-        console.warn('hasInkData is deprecated.');
-        return false;
-    }
-
-    /** @deprecated */
-    getInkFolderPath(notePath: string): string {
-        console.warn('getInkFolderPath is deprecated.');
-        const base = notePath.replace(/\.md$/i, '');
-        return normalizePath(`${base}.assets/ink`);
-    }
-
-    /** @deprecated */
-    async ensureInkFolder(notePath: string): Promise<string> {
-        console.warn('ensureInkFolder is deprecated.');
-        return '';
-    }
 }

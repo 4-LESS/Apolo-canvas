@@ -1,20 +1,15 @@
-import { StrokePattern } from '../../../model/ElementStyle';
 import { BasePopover } from '../BasePopover';
 import type { Toolbar } from '../../Toolbar';
-
-const PATTERNS: { id: StrokePattern; svg: string; title: string }[] = [
-    { id: 'solid', title: 'Solid', svg: '<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><line x1="4" y1="12" x2="20" y2="12" stroke-linecap="round"/></svg>' },
-    { id: 'dashed', title: 'Dashed', svg: '<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><line x1="4" y1="12" x2="20" y2="12" stroke-dasharray="4,4" stroke-linecap="round"/></svg>' },
-    { id: 'dotted', title: 'Dotted', svg: '<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><line x1="4" y1="12" x2="20" y2="12" stroke-dasharray="1,4" stroke-linecap="round"/></svg>' }
-];
+import { PATTERNS } from '../patterns';
 
 export class PatternPopover extends BasePopover {
     constructor(parent: HTMLElement, plugin: any, private toolbar: Toolbar, dismissBoundary?: HTMLElement) {
         super(parent, plugin, 'ink-pattern-popover', dismissBoundary);
+        this.ensureBuilt();
     }
 
     protected buildContent(): void {
-        this.el.createEl('div', { cls: 'ink-style-header', text: 'PATTERN' });
+        this.el.createEl('div', { cls: 'ink-popover-header', text: 'PATTERN' });
         const row = this.el.createDiv({ cls: 'ink-style-row pattern-row' });
         PATTERNS.forEach((pat) => {
             const btn = row.createEl('button', {

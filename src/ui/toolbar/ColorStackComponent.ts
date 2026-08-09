@@ -94,8 +94,6 @@ export class ColorStackComponent {
                 this.callbacks.onOpenPicker(btn, i);
             };
             btn.addEventListener('dblclick', onDblClick);
-            // Typo alias kept for forward-compat with legacy event dispatch
-            btn.addEventListener('dbclick', onDblClick as EventListener);
 
             btn.addEventListener('click', (e: MouseEvent) => {
                 if (e.detail !== 0) return;
