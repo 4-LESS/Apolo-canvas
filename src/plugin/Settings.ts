@@ -68,6 +68,8 @@ export interface ApoloCanvasSettings {
     lastPenColorHex: string;
     lastHighlighterColorHex: string;
     lastShapeColorHex: string;
+    activePenProfileId: string | null;
+    activeHighlighterProfileId: string | null;
     highlighterLinearModifier: boolean;
     enablePencilCase: boolean;
     pencilCaseOrientation: 'horizontal' | 'vertical';
@@ -124,6 +126,8 @@ export const DEFAULT_SETTINGS: ApoloCanvasSettings = {
     lastPenColorHex: '#000000',
     lastHighlighterColorHex: '#ffff0080',
     lastShapeColorHex: '#000000',
+    activePenProfileId: null,
+    activeHighlighterProfileId: null,
     highlighterLinearModifier: false,
     enablePencilCase: true,
     pencilCaseOrientation: 'horizontal',
@@ -513,7 +517,8 @@ export class ApoloCanvasSettingsTab extends PluginSettingTab {
                     dropdown.addOption('horizontal', 'Horizontal');
                     dropdown.addOption('vertical', 'Vertical');
                     dropdown.setValue(this.plugin.settings.pencilCaseOrientation || 'horizontal');
-                    dropdown.onChange(async (value: 'horizontal' | 'vertical') => {
+                    dropdown.onChange(async (value) => {
+                        if (value !== 'horizontal' && value !== 'vertical') return;
                         this.plugin.settings.pencilCaseOrientation = value;
                         await this.plugin.saveSettings();
                         this.plugin.globalToolbar?.pencilCaseBar?.syncValues();

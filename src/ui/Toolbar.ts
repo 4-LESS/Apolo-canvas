@@ -1,7 +1,9 @@
 import { MarkdownView, setIcon } from 'obsidian';
+import type { App, EventRef, Workspace } from 'obsidian';
 import { FocusedEngineRef } from '../engine/FocusedEngineRef';
 import { InkEngine } from '../engine/InkEngine';
 import { StrokePattern } from '../model/ElementStyle';
+import type { ApoloCanvasSettings, InkPalette } from '../plugin/Settings';
 import { ColorStackComponent } from './toolbar/ColorStackComponent';
 import { PenProfileRegistry } from '../model/PenProfileRegistry';
 import { HighlighterOptionsPopover } from './toolbar/popovers/HighlighterOptionsPopover';
@@ -24,7 +26,41 @@ const PATTERN_SVGS: Record<StrokePattern, string> = {
     dotted: '<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"><line x1="4" y1="12" x2="20" y2="12" stroke-dasharray="1,4" stroke-linecap="round"/></svg>'
 };
 
-const DEFAULT_PALETTES = {
+type PaletteTool = 'pen' | 'highlighter' | 'shape';
+
+interface ToolbarPlugin {
+    app?: App;
+    settings?: ApoloCanvasSettings;
+    settingTab?: { display(): void };
+    registerEvent?(eventRef: EventRef): void;
+    saveSettings?(): Promise<void>;
+}
+
+interface GlobalWithApp {
+    app?: App;
+}
+
+type WorkspaceDomLike = Workspace & {
+    containerEl: HTMLElement;
+    leftSplit: Workspace['leftSplit'] & { containerEl: HTMLElement };
+};
+
+type AppDomLike = App & {
+    isMobile?: boolean;
+    workspace: WorkspaceDomLike;
+};
+
+interface StyleChange {
+    profileId?: string;
+    thickness?: number;
+    smoothing?: number;
+    color?: string;
+    shapeId?: string;
+    fillEnabled?: boolean;
+    fillColor?: string;
+}
+
+const DEFAULT_PALETTES: Record<PaletteTool, InkPalette[]> = {
     pen: [{ id: 'classic', name: 'Classic', colors: ['#000000', '#ff0000', '#0000ff', '#00ff00'] }],
     highlighter: [{ id: 'classic', name: 'Classic', colors: ['#ffff0080', '#00ff0080', '#ff00ff80', '#00ffff80'] }],
     shape: [{ id: 'classic', name: 'Classic', colors: ['#000000', '#ff0000', '#0000ff', '#00ff00'] }]
@@ -47,7 +83,7 @@ export class Toolbar {
     public dragController!: FloatingDragController;
     public activePickerSlotIdx: number | null = null;
     public settingsSaveTimeout: ReturnType<typeof setTimeout> | null = null;
-    public swatchManagerModal: any = null;
+    public swatchManagerModal: SwatchManagerModal | null = null;
     public presetSwatchesEl!: HTMLElement;
     public savedSwatchesEl!: HTMLElement;
     public hexInput!: HTMLInputElement;
@@ -70,9 +106,9 @@ export class Toolbar {
     private selectedFillColor = '#1a1a1a';
 
     constructor(
-        private toolbarEl: HTMLElement,
+        public toolbarEl: HTMLElement,
         public focusedEngineRef: FocusedEngineRef,
-        public plugin?: any
+        public plugin?: ToolbarPlugin
     ) {
         this.buildUI();
         this.focusedEngineRef.onChange((engine) => {
@@ -91,8 +127,8 @@ export class Toolbar {
         this.updatePencilCaseMount(this.focusedEngineRef.get());
         this.syncToolState();
 
-        const app = this.plugin?.app || (globalThis as any).app;
-        if (app && this.plugin && typeof this.plugin.registerEvent === 'function' && typeof app.workspace?.on === 'function') {
+        const app = this.getApp();
+        if (app && this.plugin?.registerEvent) {
             this.plugin.registerEvent(
                 app.workspace.on('resize', () => this.scheduleSidebarOverlayStateUpdate())
             );
@@ -194,7 +230,7 @@ export class Toolbar {
             const slider = (e?.target as HTMLInputElement) || this.thicknessSlider;
             const val = Number(slider?.value ?? 4);
             engine.setToolSize(engine.getToolName(), val);
-            (engine as any).activeProfileId = '';
+            engine.activeProfileId = '';
         }));
         this.patternRowEl = dummy.createDiv({ cls: 'ink-style-row pattern-row' });
         (Object.keys(PATTERN_SVGS) as StrokePattern[]).forEach((id) => {
@@ -205,7 +241,7 @@ export class Toolbar {
                 e.stopPropagation();
                 this.withEngine((engine) => {
                     engine.currentPattern = id;
-                    (engine as any).activeProfileId = '';
+                    engine.activeProfileId = '';
                     engine.requestFullRender();
                 });
             });
@@ -293,7 +329,7 @@ export class Toolbar {
     }
 
     updateVisibilityMode(): void {
-        const app = this.plugin?.app || (globalThis as any).app;
+        const app = this.getApp();
         if (!app) return;
         const activeView = app.workspace.getActiveViewOfType?.(MarkdownView);
         const isCanvasView = app.workspace.activeLeaf?.view?.getViewType?.() === 'ink-full-view';
@@ -303,7 +339,7 @@ export class Toolbar {
     }
 
     public updateSidebarOverlayState(): void {
-        const app = this.plugin?.app || (globalThis as any).app;
+        const app = this.getApp() as AppDomLike | undefined;
         if (!app || !app.isMobile) {
             this.toolbarEl.classList.remove('ink-sidebar-overlay-open');
             this.clearSidebarOffset();
@@ -311,7 +347,7 @@ export class Toolbar {
         }
         
         const leftSplit = app.workspace?.leftSplit;
-        const rootSplit = app.workspace?.rootSplit;
+        const rootContainer = app.workspace.containerEl;
         
         if (!leftSplit || leftSplit.collapsed) {
             this.toolbarEl.classList.remove('ink-sidebar-overlay-open');
@@ -320,7 +356,7 @@ export class Toolbar {
         }
         
         const leftRect = leftSplit.containerEl?.getBoundingClientRect?.();
-        const rootRect = rootSplit?.containerEl?.getBoundingClientRect();
+        const rootRect = rootContainer.getBoundingClientRect();
         const hasVisibleSidebar = !!leftRect && leftRect.width > 50 && leftRect.right > 50;
         const overlapsRoot = !!leftRect && !!rootRect && leftRect.right > rootRect.left + 24;
         const isPinned = !!rootRect && rootRect.left > 50 && !overlapsRoot;
@@ -331,10 +367,13 @@ export class Toolbar {
     }
 
     private clearSidebarOffset(): void {
-        if (typeof this.toolbarEl.style?.removeProperty === 'function') {
-            this.toolbarEl.style.removeProperty('--ink-sidebar-offset');
-        } else if (this.toolbarEl.style) {
-            (this.toolbarEl.style as any)['--ink-sidebar-offset'] = '';
+        const style = this.toolbarEl.style as CSSStyleDeclaration & {
+            removeProperty?: (property: string) => void;
+        };
+        if (typeof style.removeProperty === 'function') {
+            style.removeProperty('--ink-sidebar-offset');
+        } else {
+            Object.assign(style, { '--ink-sidebar-offset': '' });
         }
     }
 
@@ -376,7 +415,7 @@ export class Toolbar {
 
     syncToolState(): void {
         const engine = this.focusedEngineRef.get();
-        const activeView = this.plugin?.app?.workspace?.getActiveViewOfType?.(MarkdownView);
+        const activeView = this.getApp()?.workspace.getActiveViewOfType(MarkdownView);
         const isReadingMode = activeView && typeof activeView.getMode === 'function' && activeView.getMode() === 'preview';
 
         // A focus change briefly sets the engine to null while Obsidian swaps
@@ -409,8 +448,11 @@ export class Toolbar {
         this.toolPillComponent.highlightActiveTool(tool);
         this.toolPillComponent.setSnapDisabled(false);
         this.toolPillComponent.setSnapActive(engine.getSnapToGrid());
-        const history = (engine as any).history || ((engine as any).getHistoryManager?.());
-        this.toolPillComponent.setHistoryState(history ? history.canUndo() : engine.canUndo(), history ? history.canRedo() : engine.canRedo());
+        const history = typeof engine.getHistoryManager === 'function' ? engine.getHistoryManager() : null;
+        this.toolPillComponent.setHistoryState(
+            history ? history.canUndo() : engine.canUndo(),
+            history ? history.canRedo() : engine.canRedo()
+        );
         if (tool !== this.lastActiveToolName) this.restoreToolColor(engine, tool);
         this.lastActiveToolName = tool;
         const inactiveStyle = tool === 'lasso' || tool === 'eraser';
@@ -420,7 +462,7 @@ export class Toolbar {
         this.patternToggleBtn.style.opacity = tool === 'pen' || tool === 'shape' ? '1.0' : '0.4';
         this.patternToggleBtn.style.pointerEvents = tool === 'pen' || tool === 'shape' ? 'all' : 'none';
         const activePopover = tool === 'pen' ? this.penOptionsPopover?.el : tool === 'highlighter' ? this.highlighterOptionsPopover?.el : tool === 'shape' ? this.shapeOptionsPopover?.el : null;
-        const isPopoverHidden = !activePopover || (typeof (activePopover as any).hasClass === 'function' ? (activePopover as any).hasClass('is-hidden') : (activePopover.classList?.contains?.('is-hidden') ?? true));
+        const isPopoverHidden = !activePopover || this.hasClass(activePopover, 'is-hidden');
         const isPanelOpened = !inactiveStyle && !isPopoverHidden;
         this.addClass(this.stylePanelEl, 'is-hidden');
         if (isPanelOpened) {
@@ -437,10 +479,10 @@ export class Toolbar {
         // when opened via showPenOptions / showHighlighterOptions.
     }
 
-    private handleStyleChange(styles: any): void {
+    private handleStyleChange(styles: StyleChange): void {
         this.withEngine((engine) => {
             if (styles.profileId !== undefined) {
-                (engine as any).activeProfileId = styles.profileId;
+                engine.activeProfileId = styles.profileId;
                 const profile = PenProfileRegistry.get(styles.profileId);
                 if (profile) {
                     engine.setToolSize(engine.getToolName(), profile.baseWidth);
@@ -454,7 +496,7 @@ export class Toolbar {
             } else {
                 if (styles.thickness !== undefined) {
                     engine.setToolSize(engine.getToolName(), styles.thickness);
-                    (engine as any).activeProfileId = '';
+                    engine.activeProfileId = '';
                 }
                 if (styles.smoothing !== undefined) {
                     if (engine.getToolName() === 'pen') {
@@ -462,11 +504,11 @@ export class Toolbar {
                     } else if (engine.getToolName() === 'highlighter') {
                         engine.setHighlighterSmoothing?.(styles.smoothing);
                     }
-                    (engine as any).activeProfileId = '';
+                    engine.activeProfileId = '';
                 }
             }
             if (styles.color !== undefined) engine.setPenColor(styles.color);
-            if (styles.shapeId !== undefined) (engine.getTool('shape') as any)?.setActiveShape?.(styles.shapeId);
+            if (styles.shapeId !== undefined) engine.getTool('shape')?.setActiveShape?.(styles.shapeId);
             if (styles.fillEnabled !== undefined) engine.currentFillColor = styles.fillEnabled ? this.selectedFillColor : 'transparent';
             if (styles.fillColor !== undefined) { this.selectedFillColor = styles.fillColor; engine.currentFillColor = styles.fillColor; }
             engine.requestFullRender();
@@ -494,7 +536,7 @@ export class Toolbar {
         return penOpen || highlighterOpen || shapeOpen;
     }
     public queueSettingsSave(): void { if (this.settingsSaveTimeout) clearTimeout(this.settingsSaveTimeout); this.settingsSaveTimeout = setTimeout(() => this.flushSettingsSave(), 300); }
-    public flushSettingsSave(): void { if (this.settingsSaveTimeout) clearTimeout(this.settingsSaveTimeout); this.settingsSaveTimeout = null; this.plugin?.saveSettings?.(); }
+    public flushSettingsSave(): void { if (this.settingsSaveTimeout) clearTimeout(this.settingsSaveTimeout); this.settingsSaveTimeout = null; void this.plugin?.saveSettings?.(); }
 
     destroy(): void {
         this.teardownListeners();
@@ -526,9 +568,14 @@ export class Toolbar {
         const { palette } = this.getPaletteData(isHighlighter);
         this.closeAllMenus();
         const color = palette.colors[slotIndex] ?? palette.colors[0];
-        const settings = this.plugin?.settings ?? {};
-        if (isHighlighter) { settings.activeHighlighterColorIndex = slotIndex; settings.lastHighlighterColorHex = color; }
-        else { settings.activePenColorIndex = slotIndex; settings.lastPenColorHex = color; }
+        const settings = this.plugin?.settings;
+        if (settings && isHighlighter) {
+            settings.activeHighlighterColorIndex = slotIndex;
+            settings.lastHighlighterColorHex = color;
+        } else if (settings) {
+            settings.activePenColorIndex = slotIndex;
+            settings.lastPenColorHex = color;
+        }
         engine.setPenColor(color);
         this.patternPopover.hide();
         this.syncToolState();
@@ -542,7 +589,7 @@ export class Toolbar {
     }
 
     public openSwatchManager(anchor: HTMLButtonElement): void {
-        const app = this.plugin?.app || (globalThis as any).app;
+        const app = this.getApp();
         if (!app) return;
         this.closeAllMenus();
         this.swatchManagerModal = new SwatchManagerModal(app, this.plugin, this);
@@ -565,29 +612,31 @@ export class Toolbar {
 
 
     public getPaletteData(toolType: boolean | 'pen' | 'highlighter' | 'shape') {
-        const settings = this.plugin?.settings ?? {};
-        let type: 'pen' | 'highlighter' | 'shape' = 'pen';
+        const settings = this.plugin?.settings;
+        let type: PaletteTool = 'pen';
         if (toolType === true || toolType === 'highlighter') type = 'highlighter';
         else if (toolType === 'shape') type = 'shape';
 
-        let palettes, activePaletteId, activeIndex;
+        let palettes: InkPalette[];
+        let activePaletteId: string;
+        let activeIndex: number;
         if (type === 'highlighter') {
-            palettes = settings.highlighterPalettes ?? DEFAULT_PALETTES.highlighter;
+            palettes = settings?.highlighterPalettes ?? DEFAULT_PALETTES.highlighter;
             if (!palettes || palettes.length === 0) palettes = DEFAULT_PALETTES.highlighter;
-            activePaletteId = settings.activeHighlighterPaletteId ?? 'classic';
-            activeIndex = settings.activeHighlighterColorIndex ?? 0;
+            activePaletteId = settings?.activeHighlighterPaletteId ?? 'classic';
+            activeIndex = settings?.activeHighlighterColorIndex ?? 0;
         } else if (type === 'shape') {
-            palettes = settings.shapePalettes ?? DEFAULT_PALETTES.shape;
+            palettes = settings?.shapePalettes ?? DEFAULT_PALETTES.shape;
             if (!palettes || palettes.length === 0) palettes = DEFAULT_PALETTES.shape;
-            activePaletteId = settings.activeShapePaletteId ?? 'classic';
-            activeIndex = settings.activeShapeColorIndex ?? 0;
+            activePaletteId = settings?.activeShapePaletteId ?? 'classic';
+            activeIndex = settings?.activeShapeColorIndex ?? 0;
         } else {
-            palettes = settings.penPalettes ?? DEFAULT_PALETTES.pen;
+            palettes = settings?.penPalettes ?? DEFAULT_PALETTES.pen;
             if (!palettes || palettes.length === 0) palettes = DEFAULT_PALETTES.pen;
-            activePaletteId = settings.activePenPaletteId ?? 'classic';
-            activeIndex = settings.activePenColorIndex ?? 0;
+            activePaletteId = settings?.activePenPaletteId ?? 'classic';
+            activeIndex = settings?.activePenColorIndex ?? 0;
         }
-        const palette = palettes.find((p: any) => p && p.id === activePaletteId) ?? palettes[0] ?? DEFAULT_PALETTES.pen[0];
+        const palette = palettes.find((p) => p.id === activePaletteId) ?? palettes[0] ?? DEFAULT_PALETTES.pen[0];
         const colors = palette?.colors ?? ['#000000', '#ff0000', '#0000ff', '#00ff00'];
         return { palettes, activePaletteId, activeIndex, palette: { ...palette, colors } };
     }
@@ -727,14 +776,12 @@ export class Toolbar {
     }
 
     private currentColor(engine: InkEngine): string {
-        return (engine as any).toolContext?.currentColor ?? '#1a1a1a';
+        return engine.toolContext.currentColor ?? '#1a1a1a';
     }
 
     public updateSmartPopoverPosition(popoverEl: HTMLElement, anchorBtn?: HTMLElement): void {
         if (!popoverEl) return;
-        const isHidden = typeof (popoverEl as any).hasClass === 'function'
-            ? (popoverEl as any).hasClass('is-hidden')
-            : popoverEl.classList?.contains?.('is-hidden');
+        const isHidden = this.hasClass(popoverEl, 'is-hidden');
         if (isHidden) return;
 
         // The panel is created in the workspace overlay.  Reparenting it to an
@@ -811,7 +858,7 @@ export class Toolbar {
     }
 
     private getOverlayContainer(): HTMLElement {
-        return (this.plugin?.app?.workspace?.rootSplit as any)?.containerEl
+        return (this.getApp() as AppDomLike | undefined)?.workspace.containerEl
             ?? this.toolbarEl.parentElement
             ?? this.toolbarEl;
     }
@@ -823,7 +870,7 @@ export class Toolbar {
     }
 
     private isInkFullView(): boolean {
-        return this.plugin?.app?.workspace?.activeLeaf?.view?.getViewType?.() === 'ink-full-view';
+        return this.getApp()?.workspace.activeLeaf?.view.getViewType() === 'ink-full-view';
     }
 
     private installOutsideDismiss(): void {
@@ -854,7 +901,7 @@ export class Toolbar {
     }
 
     private installWorkspaceListeners(): void {
-        const workspace = this.plugin?.app?.workspace;
+        const workspace = this.getApp()?.workspace;
         if (!workspace || typeof workspace.on !== 'function') return;
 
         const sync = () => {
@@ -890,5 +937,14 @@ export class Toolbar {
 
     private toggleClass(el: HTMLElement, cls: string, enabled: boolean): void {
         enabled ? this.addClass(el, cls) : this.removeClass(el, cls);
+    }
+
+    private getApp(): App | undefined {
+        return this.plugin?.app ?? (globalThis as unknown as GlobalWithApp).app;
+    }
+
+    private hasClass(el: HTMLElement, cls: string): boolean {
+        const compatibilityEl = el as HTMLElement & { hasClass?: (className: string) => boolean };
+        return compatibilityEl.hasClass?.(cls) ?? el.classList.contains(cls);
     }
 }

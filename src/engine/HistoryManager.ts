@@ -1,7 +1,35 @@
 import { InkPage } from '../model/InkPage';
 import { InkElement } from '../model/InkElement';
 import { ElementStyle } from '../model/ElementStyle';
-import { rotatePoint } from '../utils/geometry';
+import { rotatePoint, Vec2 } from '../utils/geometry';
+
+interface StrokeElementLike extends InkElement {
+    type: 'stroke';
+    points: number[][];
+}
+
+interface ShapeElementLike extends InkElement {
+    type: 'shape';
+    points: Vec2[];
+    rotation?: number;
+    style: ElementStyle;
+}
+
+interface StyledElementLike extends InkElement {
+    style: ElementStyle;
+}
+
+function isStrokeElement(element: InkElement): element is StrokeElementLike {
+    return element.type === 'stroke' && 'points' in element && Array.isArray(element.points);
+}
+
+function isShapeElement(element: InkElement): element is ShapeElementLike {
+    return element.type === 'shape' && 'points' in element && Array.isArray(element.points) && 'style' in element;
+}
+
+function isStyledElement(element: InkElement): element is StyledElementLike {
+    return (element.type === 'stroke' || element.type === 'shape') && 'style' in element;
+}
 
 /**
  * A reversible command for the undo/redo system.
@@ -70,21 +98,15 @@ export class MoveElementsCommand implements Command {
 
     private applyDelta(dx: number, dy: number): void {
         for (const element of this.elements) {
-            if (element.type === 'stroke') {
-                const stroke = element as any;
-                if (stroke.points && Array.isArray(stroke.points)) {
-                    for (const pt of stroke.points) {
-                        pt[0] += dx;
-                        pt[1] += dy;
-                    }
+            if (isStrokeElement(element)) {
+                for (const pt of element.points) {
+                    pt[0] += dx;
+                    pt[1] += dy;
                 }
-            } else if (element.type === 'shape') {
-                const shape = element as any;
-                if (shape.points && Array.isArray(shape.points)) {
-                    for (const pt of shape.points) {
-                        pt.x += dx;
-                        pt.y += dy;
-                    }
+            } else if (isShapeElement(element)) {
+                for (const pt of element.points) {
+                    pt.x += dx;
+                    pt.y += dy;
                 }
             }
             element.invalidateCache();
@@ -116,21 +138,15 @@ export class ResizeElementsCommand implements Command {
 
     private applyScale(s: { x: number; y: number }): void {
         for (const element of this.elements) {
-            if (element.type === 'stroke') {
-                const stroke = element as any;
-                if (stroke.points && Array.isArray(stroke.points)) {
-                    for (const pt of stroke.points) {
-                        pt[0] = this.anchor.x + (pt[0] - this.anchor.x) * s.x;
-                        pt[1] = this.anchor.y + (pt[1] - this.anchor.y) * s.y;
-                    }
+            if (isStrokeElement(element)) {
+                for (const pt of element.points) {
+                    pt[0] = this.anchor.x + (pt[0] - this.anchor.x) * s.x;
+                    pt[1] = this.anchor.y + (pt[1] - this.anchor.y) * s.y;
                 }
-            } else if (element.type === 'shape') {
-                const shape = element as any;
-                if (shape.points && Array.isArray(shape.points)) {
-                    for (const pt of shape.points) {
-                        pt.x = this.anchor.x + (pt.x - this.anchor.x) * s.x;
-                        pt.y = this.anchor.y + (pt.y - this.anchor.y) * s.y;
-                    }
+            } else if (isShapeElement(element)) {
+                for (const pt of element.points) {
+                    pt.x = this.anchor.x + (pt.x - this.anchor.x) * s.x;
+                    pt.y = this.anchor.y + (pt.y - this.anchor.y) * s.y;
                 }
             }
             element.invalidateCache();
@@ -166,30 +182,24 @@ export class RotateElementsCommand implements Command {
 
     private applyRotation(angle: number): void {
         for (const element of this.elements) {
-            if (element.type === 'stroke') {
-                const stroke = element as any;
-                if (stroke.points && Array.isArray(stroke.points)) {
-                    for (const pt of stroke.points) {
-                        const rotated = rotatePoint({ x: pt[0], y: pt[1] }, this.center, angle);
-                        pt[0] = rotated.x;
-                        pt[1] = rotated.y;
-                    }
+            if (isStrokeElement(element)) {
+                for (const pt of element.points) {
+                    const rotated = rotatePoint({ x: pt[0], y: pt[1] }, this.center, angle);
+                    pt[0] = rotated.x;
+                    pt[1] = rotated.y;
                 }
-            } else if (element.type === 'shape') {
-                const shape = element as any;
-                const box = shape.getBoundingBox();
+            } else if (isShapeElement(element)) {
+                const box = element.getBoundingBox();
                 const shCx = box.centerX;
                 const shCy = box.centerY;
                 const newCenter = rotatePoint({ x: shCx, y: shCy }, this.center, angle);
                 const dx = newCenter.x - shCx;
                 const dy = newCenter.y - shCy;
-                if (shape.points && Array.isArray(shape.points)) {
-                    for (const pt of shape.points) {
-                        pt.x += dx;
-                        pt.y += dy;
-                    }
+                for (const pt of element.points) {
+                    pt.x += dx;
+                    pt.y += dy;
                 }
-                shape.rotation = (shape.rotation || 0) + angle;
+                element.rotation = (element.rotation || 0) + angle;
             }
             element.invalidateCache();
             element.getBoundingBox();
@@ -231,20 +241,20 @@ export class DeleteElementsCommand implements Command {
         // and if so, clear the link for the other elements in that group
         const groupIdsToClear = new Set<string>();
         for (const item of this.savedElements) {
-            if ((item.element as any).linkGroupId) {
-                groupIdsToClear.add((item.element as any).linkGroupId);
+            if (item.element.linkGroupId) {
+                groupIdsToClear.add(item.element.linkGroupId);
             }
         }
 
         if (groupIdsToClear.size > 0) {
             for (const el of this.page.elements) {
-                if ((el as any).linkGroupId && groupIdsToClear.has((el as any).linkGroupId)) {
+                if (el.linkGroupId && groupIdsToClear.has(el.linkGroupId)) {
                     // Only clear it if it's NOT already in the list of elements being deleted
                     if (!this.elementIds.includes(el.id)) {
                         this.clearedLinks.push({
                             element: el,
                             oldUrl: el.url,
-                            oldGroupId: (el as any).linkGroupId
+                            oldGroupId: el.linkGroupId
                         });
                     }
                 }
@@ -261,7 +271,7 @@ export class DeleteElementsCommand implements Command {
         }
         for (const item of this.clearedLinks) {
             item.element.url = undefined;
-            (item.element as any).linkGroupId = undefined;
+            item.element.linkGroupId = undefined;
         }
     }
 
@@ -273,7 +283,7 @@ export class DeleteElementsCommand implements Command {
         }
         for (const item of this.clearedLinks) {
             item.element.url = item.oldUrl;
-            (item.element as any).linkGroupId = item.oldGroupId;
+            item.element.linkGroupId = item.oldGroupId;
         }
     }
 }
@@ -315,14 +325,14 @@ export class SplitElementCommand implements Command {
     ) {
         this.index = this.page.getElementIndex(parentElement.id);
 
-        const parentGroupId = (parentElement as any).linkGroupId;
+        const parentGroupId = parentElement.linkGroupId;
         if (parentGroupId) {
             for (const el of this.page.elements) {
-                if ((el as any).linkGroupId === parentGroupId && el.id !== parentElement.id) {
+                if (el.linkGroupId === parentGroupId && el.id !== parentElement.id) {
                     this.clearedLinks.push({
                         element: el,
                         oldUrl: el.url,
-                        oldGroupId: (el as any).linkGroupId
+                        oldGroupId: el.linkGroupId
                     });
                 }
             }
@@ -340,7 +350,7 @@ export class SplitElementCommand implements Command {
         }
         for (const item of this.clearedLinks) {
             item.element.url = undefined;
-            (item.element as any).linkGroupId = undefined;
+            item.element.linkGroupId = undefined;
         }
         this.parentElement.invalidateCache();
         if (this.childA) this.childA.invalidateCache();
@@ -358,7 +368,7 @@ export class SplitElementCommand implements Command {
         }
         for (const item of this.clearedLinks) {
             item.element.url = item.oldUrl;
-            (item.element as any).linkGroupId = item.oldGroupId;
+            item.element.linkGroupId = item.oldGroupId;
         }
         this.parentElement.invalidateCache();
         this.renderer?.fullRender();
@@ -376,16 +386,20 @@ export class ChangeStyleCommand implements Command {
 
     execute(): void {
         for (const update of this.updates) {
-            (update.element as any).style = { ...update.newStyle };
-            update.element.invalidateCache();
+            if (isStyledElement(update.element)) {
+                update.element.style = { ...update.newStyle };
+                update.element.invalidateCache();
+            }
         }
         this.renderer?.fullRender();
     }
 
     undo(): void {
         for (const update of this.updates) {
-            (update.element as any).style = { ...update.oldStyle };
-            update.element.invalidateCache();
+            if (isStyledElement(update.element)) {
+                update.element.style = { ...update.oldStyle };
+                update.element.invalidateCache();
+            }
         }
         this.renderer?.fullRender();
     }
@@ -409,7 +423,7 @@ export class ChangeUrlCommand implements Command {
     execute(): void {
         for (const update of this.updates) {
             update.element.url = update.newUrl;
-            (update.element as any).linkGroupId = update.newGroupId;
+            update.element.linkGroupId = update.newGroupId;
         }
         this.renderer?.fullRender();
     }
@@ -417,7 +431,7 @@ export class ChangeUrlCommand implements Command {
     undo(): void {
         for (const update of this.updates) {
             update.element.url = update.oldUrl;
-            (update.element as any).linkGroupId = update.oldGroupId;
+            update.element.linkGroupId = update.oldGroupId;
         }
         this.renderer?.fullRender();
     }
@@ -435,7 +449,7 @@ export class SortElementsCommand implements Command {
     ) {}
 
     execute(): void {
-        (this.page as any).elements = [...this.newOrder];
+        this.page.elements = [...this.newOrder];
         for (const el of this.newOrder) {
             el.invalidateCache();
         }
@@ -443,7 +457,7 @@ export class SortElementsCommand implements Command {
     }
 
     undo(): void {
-        (this.page as any).elements = [...this.originalOrder];
+        this.page.elements = [...this.originalOrder];
         for (const el of this.originalOrder) {
             el.invalidateCache();
         }

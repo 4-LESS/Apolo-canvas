@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "test": "vitest run",
+    "typecheck": "tsc --noEmit",
     "build": "node esbuild.config.mjs production"
   },
   "keywords": [

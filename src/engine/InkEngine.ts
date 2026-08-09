@@ -273,8 +273,6 @@ export class InkEngine {
 
     /** Switch the active tool by name. */
     setTool(toolName: string): void {
-        console.log('[DIAGNOSTIC] engine.setTool called with:', toolName);
-        console.log('[DIAGNOSTIC] Tool found in map?', this.tools.has(toolName));
         const tool = this.tools.get(toolName);
         if (!tool) return;
 

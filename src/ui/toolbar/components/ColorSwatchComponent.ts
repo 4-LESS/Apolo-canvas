@@ -225,14 +225,14 @@ export class ColorSwatchComponent {
         }
 
         const newPalette = palettes[nextIdx];
-        const settings = this.toolbar.plugin?.settings ?? {};
+        const settings = this.toolbar.plugin?.settings;
         if (isHighlighter) {
-            settings.activeHighlighterPaletteId = newPalette.id;
+            if (settings) settings.activeHighlighterPaletteId = newPalette.id;
         } else {
-            settings.activePenPaletteId = newPalette.id;
+            if (settings) settings.activePenPaletteId = newPalette.id;
         }
 
-        const activeColorIdx = (isHighlighter ? settings.activeHighlighterColorIndex : settings.activePenColorIndex) ?? 0;
+        const activeColorIdx = (isHighlighter ? settings?.activeHighlighterColorIndex : settings?.activePenColorIndex) ?? 0;
         const newColor = newPalette.colors[activeColorIdx] ?? newPalette.colors[0];
 
         const engine = this.toolbar.focusedEngineRef.get();
@@ -243,9 +243,9 @@ export class ColorSwatchComponent {
                 }
             } else {
                 if (isHighlighter) {
-                    settings.lastHighlighterColorHex = newColor;
+                    if (settings) settings.lastHighlighterColorHex = newColor;
                 } else {
-                    settings.lastPenColorHex = newColor;
+                    if (settings) settings.lastPenColorHex = newColor;
                 }
                 engine.setPenColor(newColor);
             }

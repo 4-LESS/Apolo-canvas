@@ -94,7 +94,7 @@ export class ShapeOptionsPopover extends BasePopover {
         this.fillCheckbox.addEventListener('change', () => {
             const isChecked = this.fillCheckbox.checked;
             if (this.activeEngine) {
-                const currentColor = (this.activeEngine as any).toolContext?.currentColor || this.activeEngine.currentColor || '#1a1a1a';
+                const currentColor = this.activeEngine.toolContext.currentColor || '#1a1a1a';
                 this.activeEngine.currentFillColor = isChecked ? currentColor : 'transparent';
                 this.activeEngine.requestFullRender();
             }

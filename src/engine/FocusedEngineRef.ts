@@ -9,7 +9,6 @@ export class FocusedEngineRef {
 
     set(engine: InkEngine | null): void {
         if (this.current !== engine) {
-            console.log(`[FocusedEngineRef] Focus changed. Old: ${this.current ? 'EngineInstance' : 'null'}, New: ${engine ? 'EngineInstance' : 'null'}`);
             this.current = engine;
             this.listener?.(engine);
         }

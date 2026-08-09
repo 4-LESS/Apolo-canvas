@@ -1,4 +1,5 @@
-import { Plugin, App, MarkdownView, TFile } from 'obsidian';
+import { Plugin, App, MarkdownView, TFile, Workspace } from 'obsidian';
+import type { EventRef } from 'obsidian';
 import { InkFileManager } from '../io/FileManager';
 import {
     ApoloCanvasSettings,
@@ -16,6 +17,48 @@ import { InkEngine } from '../engine/InkEngine';
 import { PAGE_PRESETS } from '../model/InkPage';
 import { Toolbar } from '../ui/Toolbar';
 
+interface HoverPopoverLike {
+    hoverParent?: unknown;
+    targetEl?: HTMLElement | null;
+    hoverEl: HTMLElement;
+    register(callback: () => void): void;
+}
+
+type HoverParentLike = HTMLElement & {
+    hoverPopover?: HoverPopoverLike | null;
+};
+
+interface HoverLinkEvent {
+    linktext: string;
+    sourcePath?: string;
+    hoverParent?: HoverParentLike | null;
+    targetEl?: HTMLElement | null;
+}
+
+interface WorkspaceEventEmitter {
+    on(name: string, callback: (...data: unknown[]) => unknown, ctx?: unknown): EventRef;
+}
+
+type WorkspaceWithHoverPopovers = Workspace & {
+    activeHoverPopovers?: HoverPopoverLike[];
+};
+
+interface AppWithCommands extends App {
+    commands?: {
+        executeCommandById(commandId: string): void;
+    };
+}
+
+interface InkBlockWrapper extends HTMLElement {
+    engine?: InkEngine;
+}
+
+function isHoverLinkEvent(value: unknown): value is HoverLinkEvent {
+    if (!value || typeof value !== 'object') return false;
+    const data = value as Record<string, unknown>;
+    return typeof data.linktext === 'string';
+}
+
 /**
  * Apolo Canvas — main plugin class.
  */
@@ -25,6 +68,8 @@ export default class InkPlugin extends Plugin {
     focusedEngineRef!: FocusedEngineRef;
     globalToolbar!: Toolbar;
     toolbarEl!: HTMLElement;
+    cacheWorker!: GraphCacheWorker;
+    fileManager!: InkFileManager;
 
     async onload(): Promise<void> {
         // Initialize focus observer
@@ -34,7 +79,7 @@ export default class InkPlugin extends Plugin {
         await this.loadSettings();
 
         // Resolve target container and create global toolbar
-        const targetContainer = (this.app.workspace.rootSplit as any)?.containerEl ?? (this.app.workspace as any).containerEl;
+        const targetContainer = this.app.workspace.containerEl;
         this.toolbarEl = targetContainer.createDiv('ink-global-toolbar');
         this.globalToolbar = new Toolbar(this.toolbarEl, this.focusedEngineRef, this);
 
@@ -94,8 +139,12 @@ export default class InkPlugin extends Plugin {
         );
 
         // Intercept hover previews for standalone .ink files to render the canvas preview
+        const workspaceEvents = this.app.workspace as WorkspaceWithHoverPopovers & WorkspaceEventEmitter;
         this.registerEvent(
-            (this.app.workspace as any).on('hover-link', (data: any) => {
+            workspaceEvents.on('hover-link', (...args: unknown[]) => {
+                const dataValue = args[0];
+                if (!isHoverLinkEvent(dataValue)) return;
+                const data = dataValue;
                 const url = data.linktext;
                 if (!url) return;
                 const cleanUrl = url.replace(/^\[\[(.*)\]\]$/, '$1').split('#')[0];
@@ -112,12 +161,13 @@ export default class InkPlugin extends Plugin {
                     // Rely on requestAnimationFrame as a microtask/rendering frame wrapper
                     // to guarantee that the popover instance is instantiated and registered by Page Preview.
                     requestAnimationFrame(async () => {
-                        const activePopovers = (this.app.workspace as any).activeHoverPopovers || [];
+                        const workspace = this.app.workspace as WorkspaceWithHoverPopovers;
+                        const activePopovers = workspace.activeHoverPopovers ?? [];
                         const hoverParent = data.hoverParent;
                         let popover = hoverParent?.hoverPopover;
                         
                         if (!popover && activePopovers.length > 0) {
-                            popover = activePopovers.find((p: any) => {
+                            popover = activePopovers.find((p) => {
                                 if (hoverParent && p.hoverParent === hoverParent) return true;
                                 if (p.targetEl && data.targetEl) {
                                     return p.targetEl === data.targetEl || 
@@ -296,7 +346,7 @@ export default class InkPlugin extends Plugin {
                 return;
             }
 
-            const wrapper = activeEl.closest('.ink-block-wrapper') as any;
+            const wrapper = activeEl.closest('.ink-block-wrapper') as InkBlockWrapper | null;
             if (!wrapper || !wrapper.engine) return;
             const engine = wrapper.engine;
 
@@ -313,7 +363,7 @@ export default class InkPlugin extends Plugin {
             } else if (isMod && e.shiftKey && (e.key === 'd' || e.key === 'D')) {
                 e.preventDefault();
                 e.stopPropagation();
-                (this.app as any).commands.executeCommandById('apolo-canvas:embed-handwriting');
+                (this.app as AppWithCommands).commands?.executeCommandById('apolo-canvas:embed-handwriting');
             } else if (!e.ctrlKey && !e.metaKey && !e.altKey) {
                 const key = e.key.toLowerCase();
                 if (key === 'p') {

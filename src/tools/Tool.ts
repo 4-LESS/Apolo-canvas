@@ -5,6 +5,7 @@ import { HistoryManager } from '../engine/HistoryManager';
 import { SelectionManager } from '../engine/SelectionManager';
 import { ClipboardManager } from '../engine/ClipboardManager';
 import { StrokePattern } from '../model/ElementStyle';
+import type { ApoloCanvasSettings } from '../plugin/Settings';
 
 /**
  * Context passed to tools so they can interact with the engine
@@ -41,7 +42,7 @@ export interface ToolContext {
     /** Active profile ID */
     activeProfileId?: string;
     /** User settings */
-    settings: any;
+    settings: ApoloCanvasSettings;
 }
 
 /**
@@ -67,6 +68,9 @@ export interface Tool {
     onActivate?(ctx: ToolContext): void;
     /** Called when this tool is replaced by another tool. */
     onDeactivate?(ctx: ToolContext): void;
+
+    /** Optional shape selector exposed by the shape tool. */
+    setActiveShape?(id: string): void;
 
     /**
      * Optional: render tool-specific overlay on the active canvas
