@@ -116,7 +116,7 @@ export class ShapeOptionsPopover extends BasePopover {
         try {
             this.populateShapeContent(engine);
         } catch (err) {
-            console.error('[Obsidian Ink] Error populating shape options popover:', err);
+            console.error('[Apolo Canvas] Error populating shape options popover:', err);
         }
 
         this.reposition();

@@ -1,22 +1,40 @@
+# Dependencies
 node_modules/
+
+# Build outputs and artifacts
 dist/
-main.js
-*.js.map
-.DS_Store
-Thumbs.db
-data.json
-.gemini/
-node_modules/
-.env
-.vscode/
-*.log
-*.tgz
-coverage/
-*.local
-.idea/
-npm-debug.log*
-package-lock.json
 build/
-# Obsidian plugin build outputs
+main.js
 main.ts
 esbuild.config.mjs
+*.js.map
+
+# Package manager
+package-lock.json
+*.tgz
+npm-debug.log*
+
+# Logs
+*.log
+
+# Environment
+.env
+
+# Coverage / tests
+coverage/
+
+# Obsidian / plugin files
+data.json
+*.agents
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors / IDEs
+.vscode/
+.idea/
+
+# Misc
+.gemini/
+*.local

@@ -151,7 +151,7 @@ export class PenOptionsPopover extends BasePopover {
         try {
             this.populateContent(engine);
         } catch (err) {
-            console.error('[Obsidian Ink] Error populating pen options popover:', err);
+            console.error('[Apolo Canvas] Error populating pen options popover:', err);
         }
 
         this.reposition();

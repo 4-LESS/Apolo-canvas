@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { expect, test, vi } from 'vitest';
-import { mapBackgroundType, DEFAULT_SETTINGS, ObsidianInkSettingsTab } from './Settings';
+import { mapBackgroundType, DEFAULT_SETTINGS, ApoloCanvasSettingsTab } from './Settings';
 
 vi.mock('obsidian', () => {
     return {
@@ -86,7 +86,7 @@ test('DEFAULT_SETTINGS values', () => {
     expect(DEFAULT_SETTINGS.themeMode).toBe('auto');
 });
 
-test('ObsidianInkSettingsTab instantiation and render', () => {
+test('ApoloCanvasSettingsTab instantiation and render', () => {
     const mockApp = {};
     const mockPlugin = {
         settings: { ...DEFAULT_SETTINGS },
@@ -112,13 +112,13 @@ test('ObsidianInkSettingsTab instantiation and render', () => {
         })
     };
 
-    const tab = new ObsidianInkSettingsTab(mockApp as any, mockPlugin as any);
+    const tab = new ApoloCanvasSettingsTab(mockApp as any, mockPlugin as any);
     tab.containerEl = mockContainer as any;
 
     tab.display();
 
     expect(mockContainer.empty).toHaveBeenCalled();
-    expect(mockContainer.createEl).toHaveBeenCalledWith('h2', { text: 'Obsidian Ink Settings' });
+    expect(mockContainer.createEl).toHaveBeenCalledWith('h2', { text: 'Apolo Canvas Settings' });
 });
 
 test('DEFAULT_SETTINGS contains pencil case defaults', () => {
@@ -211,7 +211,7 @@ test('Pencil Case tab rendering when enabled and disabled', () => {
         })
     };
 
-    const tab = new ObsidianInkSettingsTab(mockApp as any, mockPlugin as any);
+    const tab = new ApoloCanvasSettingsTab(mockApp as any, mockPlugin as any);
     tab.containerEl = mockContainer as any;
 
     tab.display();

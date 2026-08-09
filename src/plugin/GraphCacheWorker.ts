@@ -121,7 +121,7 @@ export class GraphCacheWorker {
 
                 // 1. Draw edge from Markdown Note to the embedded Canvas file
                 for (const canvasId of canvases) {
-                    const canvasAssetPath = `ObsidianInk/data/${canvasId}.ink`;
+                    const canvasAssetPath = `ApoloCanvas/data/${canvasId}.ink`;
                     if (!cache.resolvedLinks[parentNotePath]) {
                         cache.resolvedLinks[parentNotePath] = {};
                     }
@@ -194,7 +194,7 @@ export class GraphCacheWorker {
                     }
                     notes.add(file.path);
                     
-                    const canvasPath = `ObsidianInk/data/${canvasId}.ink`;
+                    const canvasPath = `ApoloCanvas/data/${canvasId}.ink`;
                     const canvasFile = this.app.vault.getAbstractFileByPath(canvasPath);
                     if (canvasFile && canvasFile instanceof TFile) {
                         try {
@@ -242,8 +242,8 @@ export class GraphCacheWorker {
 
         // 2. Morph keys in metadata resolved/unresolved caches
         const cache = this.app.metadataCache as any;
-        const oldPathAsset = `ObsidianInk/data/${oldId}.ink`;
-        const newPathAsset = `ObsidianInk/data/${newId}.ink`;
+        const oldPathAsset = `ApoloCanvas/data/${oldId}.ink`;
+        const newPathAsset = `ApoloCanvas/data/${newId}.ink`;
 
         if (cache && cache.resolvedLinks) {
             for (const parentNote of Object.keys(cache.resolvedLinks)) {
@@ -328,7 +328,7 @@ export class GraphCacheWorker {
      * Loads canvas hyperlink targets directly from disk.
      */
     private async loadCanvasLinksFromDisk(canvasId: string): Promise<void> {
-        const canvasPath = `ObsidianInk/data/${canvasId}.ink`;
+        const canvasPath = `ApoloCanvas/data/${canvasId}.ink`;
         const file = this.app.vault.getAbstractFileByPath(canvasPath);
         if (file && file instanceof TFile) {
             try {

@@ -173,7 +173,7 @@ export class InkPage {
                 return ShapeElement.deserialize(data);
             default:
                 console.warn(
-                    `[ObsidianInk] Unknown element type: ${data.type}, skipping.`
+                    `[ApoloCanvas] Unknown element type: ${data.type}, skipping.`
                 );
                 return null;
         }

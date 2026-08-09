@@ -169,7 +169,7 @@ export class HighlighterOptionsPopover extends BasePopover {
         try {
             this.populateContent(engine);
         } catch (err) {
-            console.error('[Obsidian Ink] Error populating highlighter options popover:', err);
+            console.error('[Apolo Canvas] Error populating highlighter options popover:', err);
         }
 
         this.reposition();

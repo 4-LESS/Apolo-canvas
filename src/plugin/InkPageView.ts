@@ -2,7 +2,7 @@ import { MarkdownRenderChild, App, MarkdownView, setIcon } from 'obsidian';
 import { InkEngine } from '../engine/InkEngine';
 import { InkPage, PAGE_PRESETS, BackgroundType } from '../model/InkPage';
 import { InkFileManager } from '../io/FileManager';
-import { ObsidianInkSettings } from './Settings';
+import { ApoloCanvasSettings } from './Settings';
 import type InkPlugin from './InkPlugin';
 import { debounce } from '../utils/debounce';
 import { FocusedEngineRef } from '../engine/FocusedEngineRef';
@@ -45,7 +45,7 @@ export class InkPageView extends MarkdownRenderChild {
         private pageId: string,
         private height: number,
         private fileManager: InkFileManager,
-        private settings: ObsidianInkSettings,
+        private settings: ApoloCanvasSettings,
         private app: App,
         private plugin: InkPlugin,
         private ctx?: any,
@@ -143,7 +143,7 @@ export class InkPageView extends MarkdownRenderChild {
             const cleanUrl = url.replace(/^\[\[(.*)\]\]$/, '$1');
             this.app.workspace.trigger('hover-link', {
                 event: event,
-                source: 'obsidian-ink',
+                source: 'apolo-canvas',
                 hoverParent: this.engine?.getCanvas(),
                 targetEl: this.engine?.getCanvas(),
                 linktext: cleanUrl,
@@ -297,7 +297,7 @@ export class InkPageView extends MarkdownRenderChild {
             }
             this.page = page;
         } catch (err) {
-            console.error('[ObsidianInk] Failed to load ink page data:', err);
+            console.error('[ApoloCanvas] Failed to load ink page data:', err);
             this.containerEl.createDiv({
                 cls: 'ink-error',
                 text: `Error al cargar datos de tinta: ${err}`,
@@ -311,7 +311,7 @@ export class InkPageView extends MarkdownRenderChild {
         try {
             await this.fileManager.savePage(this.page);
         } catch (err) {
-            console.error('[ObsidianInk] Auto-save failed:', err);
+            console.error('[ApoloCanvas] Auto-save failed:', err);
         }
     }
 

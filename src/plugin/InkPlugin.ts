@@ -1,9 +1,9 @@
 import { Plugin, App, MarkdownView, TFile } from 'obsidian';
 import { InkFileManager } from '../io/FileManager';
 import {
-    ObsidianInkSettings,
+    ApoloCanvasSettings,
     DEFAULT_SETTINGS,
-    ObsidianInkSettingsTab
+    ApoloCanvasSettingsTab
 } from './Settings';
 import { registerInkProcessor } from './InkCodeBlockProcessor';
 import { InkFullView, INK_FULL_VIEW_TYPE } from './InkFullView';
@@ -17,12 +17,10 @@ import { PAGE_PRESETS } from '../model/InkPage';
 import { Toolbar } from '../ui/Toolbar';
 
 /**
- * Obsidian Ink — main plugin class.
+ * Apolo Canvas — main plugin class.
  */
 export default class InkPlugin extends Plugin {
-    settings: ObsidianInkSettings = DEFAULT_SETTINGS;
-    fileManager!: InkFileManager;
-    cacheWorker!: GraphCacheWorker;
+    settings: ApoloCanvasSettings = DEFAULT_SETTINGS;
     activeEngines = new Set<InkEngine>();
     focusedEngineRef!: FocusedEngineRef;
     globalToolbar!: Toolbar;
@@ -54,14 +52,14 @@ export default class InkPlugin extends Plugin {
 
         // Ensure centralized vault directories exist
         const adapter = this.app.vault.adapter;
-        if (!(await adapter.exists('ObsidianInk'))) {
-            await adapter.mkdir('ObsidianInk');
+        if (!(await adapter.exists('ApoloCanvas'))) {
+            await adapter.mkdir('ApoloCanvas');
         }
-        if (!(await adapter.exists('ObsidianInk/data'))) {
-            await adapter.mkdir('ObsidianInk/data');
+        if (!(await adapter.exists('ApoloCanvas/data'))) {
+            await adapter.mkdir('ApoloCanvas/data');
         }
-        if (!(await adapter.exists('ObsidianInk/exports'))) {
-            await adapter.mkdir('ObsidianInk/exports');
+        if (!(await adapter.exists('ApoloCanvas/exports'))) {
+            await adapter.mkdir('ApoloCanvas/exports');
         }
 
         // Run legacy data migration on startup if not complete
@@ -83,7 +81,7 @@ export default class InkPlugin extends Plugin {
         this.registerExtensions(['ink'], INK_FULL_VIEW_TYPE);
 
         // Register hover link source with native Page Preview plugin
-        this.registerHoverLinkSource('obsidian-ink', { display: 'Obsidian Ink', defaultMod: true });
+        this.registerHoverLinkSource('apolo-canvas', { display: 'Apolo Canvas', defaultMod: true });
 
         // Initialize vault-wide ingestion scan for closed notes
         await this.cacheWorker.initializeVaultIndex();
@@ -223,7 +221,7 @@ export default class InkPlugin extends Plugin {
         );
 
         // Settings tab
-        this.addSettingTab(new ObsidianInkSettingsTab(this.app, this));
+        this.addSettingTab(new ApoloCanvasSettingsTab(this.app, this));
 
         // Ribbon icon
         this.addRibbonIcon('pen-tool', 'Add Ink Block', () => {
@@ -315,7 +313,7 @@ export default class InkPlugin extends Plugin {
             } else if (isMod && e.shiftKey && (e.key === 'd' || e.key === 'D')) {
                 e.preventDefault();
                 e.stopPropagation();
-                (this.app as any).commands.executeCommandById('obsidian-ink:embed-handwriting');
+                (this.app as any).commands.executeCommandById('apolo-canvas:embed-handwriting');
             } else if (!e.ctrlKey && !e.metaKey && !e.altKey) {
                 const key = e.key.toLowerCase();
                 if (key === 'p') {

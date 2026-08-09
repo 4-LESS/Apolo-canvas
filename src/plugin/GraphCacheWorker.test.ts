@@ -189,20 +189,20 @@ describe('GraphCacheWorker', () => {
         worker.registerCanvas('canvas-1', 'ParentNote.md');
 
         worker.updateCanvasLinks('canvas-1', [
-            'ObsidianInk/data/Example2.ink',
+            'ApoloCanvas/data/Example2.ink',
             'Attachments/Syllabus.pdf',
         ]);
 
         const cache = mockApp.metadataCache;
 
         // Ensure parent note inherits link to the other canvas
-        expect(cache.unresolvedLinks['ParentNote.md']['ObsidianInk/data/Example2.ink']).toBe(1);
+        expect(cache.unresolvedLinks['ParentNote.md']['ApoloCanvas/data/Example2.ink']).toBe(1);
 
         // Ensure parent note inherits link to the PDF asset
         expect(cache.resolvedLinks['ParentNote.md']['Attachments/Syllabus.pdf']).toBe(1);
 
         // Ensure parent note also has the parent-to-embed edge for the embedded canvas itself
-        expect(cache.resolvedLinks['ParentNote.md']['ObsidianInk/data/canvas-1.ink']).toBe(1);
+        expect(cache.resolvedLinks['ParentNote.md']['ApoloCanvas/data/canvas-1.ink']).toBe(1);
     });
 });
 

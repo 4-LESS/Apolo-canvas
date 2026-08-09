@@ -4,7 +4,7 @@ import { InkDocument } from '../model/InkDocument';
 
 /**
  * Manages reading and writing ink data to the Obsidian vault.
- * All active ink data lives in ObsidianInk/data/<page-id>.json.
+ * All active ink data lives in ApoloCanvas/data/<page-id>.json.
  */
 export class InkFileManager {
     constructor(private app: App) {}
@@ -13,11 +13,11 @@ export class InkFileManager {
      * Load a single page's data directly by ID.
      */
     async loadPage(id: string): Promise<InkPage | null> {
-        let pagePath = `ObsidianInk/data/${id}.ink`;
+        let pagePath = `ApoloCanvas/data/${id}.ink`;
         let isLegacy = false;
 
         if (!(await this.app.vault.adapter.exists(pagePath))) {
-            const legacyPath = `ObsidianInk/data/${id}.json`;
+            const legacyPath = `ApoloCanvas/data/${id}.json`;
             if (await this.app.vault.adapter.exists(legacyPath)) {
                 pagePath = legacyPath;
                 isLegacy = true;
@@ -38,7 +38,7 @@ export class InkFileManager {
 
             return page;
         } catch (err) {
-            console.error(`[ObsidianInk] Failed to read page ${id}:`, err);
+            console.error(`[ApoloCanvas] Failed to read page ${id}:`, err);
             return null;
         }
     }
@@ -47,7 +47,7 @@ export class InkFileManager {
      * Save a single page's data directly.
      */
     async savePage(page: InkPage): Promise<void> {
-        const pagePath = `ObsidianInk/data/${page.id}.ink`;
+        const pagePath = `ApoloCanvas/data/${page.id}.ink`;
         const json = JSON.stringify(page.serialize(), null, 2);
         await this.app.vault.adapter.write(pagePath, json);
     }
@@ -56,11 +56,11 @@ export class InkFileManager {
      * Delete a single page's data file permanently from the vault.
      */
     async deletePage(id: string): Promise<void> {
-        const pagePath = `ObsidianInk/data/${id}.ink`;
+        const pagePath = `ApoloCanvas/data/${id}.ink`;
         if (await this.app.vault.adapter.exists(pagePath)) {
             await this.app.vault.adapter.remove(pagePath);
         } else {
-            const legacyPath = `ObsidianInk/data/${id}.json`;
+            const legacyPath = `ApoloCanvas/data/${id}.json`;
             if (await this.app.vault.adapter.exists(legacyPath)) {
                 await this.app.vault.adapter.remove(legacyPath);
             }
@@ -82,7 +82,7 @@ export class InkFileManager {
                     for (const child of children) {
                         if (child instanceof TFile && child.extension === 'json') {
                             const destName = child.name.replace(/\.json$/i, '.ink');
-                            const destPath = `ObsidianInk/data/${destName}`;
+                            const destPath = `ApoloCanvas/data/${destName}`;
                             // Read from source, write to centralized destination
                             const content = await this.app.vault.read(child);
                             await this.app.vault.adapter.write(destPath, content);
@@ -94,14 +94,14 @@ export class InkFileManager {
 
             if (migratedCount > 0) {
                 new Notice(
-                    `Obsidian Ink: data migrated to ObsidianInk/data/. Legacy .assets/ink/ folders can be deleted manually.`
+                    `Apolo Canvas: data migrated to ApoloCanvas/data/. Legacy .assets/ink/ folders can be deleted manually.`
                 );
             }
 
             plugin.settings.migrationComplete = true;
             await plugin.saveSettings();
         } catch (err) {
-            console.error('[ObsidianInk] Legacy data migration failed:', err);
+            console.error('[ApoloCanvas] Legacy data migration failed:', err);
         }
     }
 

@@ -16,7 +16,7 @@ export class CanvasSuggestModal extends FuzzySuggestModal<TFile> {
     getItems(): TFile[] {
         return this.app.vault.getFiles().filter(file =>
             file.extension === 'ink' &&
-            file.path.startsWith('ObsidianInk/data/')
+            file.path.startsWith('ApoloCanvas/data/')
         );
     }
 

@@ -2,7 +2,7 @@ import { FileView, TFile, WorkspaceLeaf } from 'obsidian';
 import { InkEngine } from '../engine/InkEngine';
 import { BackgroundType, InkPage, PAGE_PRESETS } from '../model/InkPage';
 import { InkFileManager } from '../io/FileManager';
-import { ObsidianInkSettings } from './Settings';
+import { ApoloCanvasSettings } from './Settings';
 import { debounce } from '../utils/debounce';
 import { FocusedEngineRef } from '../engine/FocusedEngineRef';
 
@@ -20,7 +20,7 @@ export class InkFullView extends FileView {
     private page: InkPage | null = null;
     private pageId: string = '';
     private fileManager: InkFileManager | null = null;
-    private settings: ObsidianInkSettings | null = null;
+    private settings: ApoloCanvasSettings | null = null;
     private saveDebounced: ((() => void) & { cancel: () => void }) | null = null;
     private resizeObserver: ResizeObserver | null = null;
     private plugin: any = null;
@@ -60,7 +60,7 @@ export class InkFullView extends FileView {
         pageId: string,
         page: InkPage,
         fileManager: InkFileManager,
-        settings: ObsidianInkSettings
+        settings: ApoloCanvasSettings
     ): void {
         this.pageId = pageId;
         this.page = page;

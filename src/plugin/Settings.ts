@@ -27,7 +27,7 @@ export interface PencilCaseProfile {
     configs: SavedToolConfig[];
 }
 
-export interface ObsidianInkSettings {
+export interface ApoloCanvasSettings {
     // Legacy settings
     defaultPagePreset: string;
     defaultPenColor: string;
@@ -75,7 +75,7 @@ export interface ObsidianInkSettings {
     activePencilCaseProfileId: string;
 }
 
-export const DEFAULT_SETTINGS: ObsidianInkSettings = {
+export const DEFAULT_SETTINGS: ApoloCanvasSettings = {
     defaultPagePreset: 'A4',
     defaultPenColor: '#1a1a2e',
     defaultPenSize: 4,
@@ -183,7 +183,7 @@ export function mapBackgroundType(bg: string): BackgroundType {
     return 'grid'; // fallback
 }
 
-export class ObsidianInkSettingsTab extends PluginSettingTab {
+export class ApoloCanvasSettingsTab extends PluginSettingTab {
     constructor(app: App, private plugin: InkPlugin) {
         super(app, plugin);
     }
@@ -192,7 +192,7 @@ export class ObsidianInkSettingsTab extends PluginSettingTab {
         const { containerEl } = this;
         containerEl.empty();
 
-        containerEl.createEl('h2', { text: 'Obsidian Ink Settings' });
+        containerEl.createEl('h2', { text: 'Apolo Canvas Settings' });
 
         // Default Canvas Height
         new Setting(containerEl)

@@ -21,8 +21,8 @@ test('LinkSuggestModal getItems correctly lists all vault files and filters inte
     const mockFiles = [
         { path: 'NoteA.md', basename: 'NoteA', extension: 'md' },
         { path: 'Attachments/Syllabus.pdf', basename: 'Syllabus', extension: 'pdf' },
-        { path: 'ObsidianInk/data/canvas-1.ink', basename: 'canvas-1', extension: 'ink' },
-        { path: 'ObsidianInk/data/settings.json', basename: 'settings', extension: 'json' },
+        { path: 'ApoloCanvas/data/canvas-1.ink', basename: 'canvas-1', extension: 'ink' },
+        { path: 'ApoloCanvas/data/settings.json', basename: 'settings', extension: 'json' },
         { path: 'Diagram.png', basename: 'Diagram', extension: 'png' },
     ];
     const mockApp = {
@@ -37,7 +37,7 @@ test('LinkSuggestModal getItems correctly lists all vault files and filters inte
     expect(items.map(i => i.path)).toEqual([
         'NoteA.md',
         'Attachments/Syllabus.pdf',
-        'ObsidianInk/data/canvas-1.ink',
+        'ApoloCanvas/data/canvas-1.ink',
         'Diagram.png'
     ]);
 });

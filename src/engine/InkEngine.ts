@@ -1,7 +1,7 @@
 import { InkPage, BackgroundType } from '../model/InkPage';
 import { InkElement } from '../model/InkElement';
 import { StrokeStyle, DEFAULT_PEN_STYLE, DEFAULT_ERASER_SIZE } from '../model/Style';
-import { ObsidianInkSettings, DEFAULT_SETTINGS } from '../plugin/Settings';
+import { ApoloCanvasSettings, DEFAULT_SETTINGS } from '../plugin/Settings';
 import { ViewportManager } from './ViewportManager';
 import { Renderer } from './Renderer';
 import { InputHandler } from './InputHandler';
@@ -90,14 +90,14 @@ export class InkEngine {
     private onHoverLinkCallback: ((url: string, event: PointerEvent) => void) | null = null;
     private onElementsUpdatedCallbacks: ((elements: InkElement[]) => void)[] = [];
     private onRecentColorsChangeCallbacks: ((color: string) => void)[] = [];
-    public settings: ObsidianInkSettings;
+    public settings: ApoloCanvasSettings;
 
     constructor(
         private container: HTMLElement,
         page: InkPage,
         private pageWidth: number,
         private pageHeight: number,
-        settings?: ObsidianInkSettings
+        settings?: ApoloCanvasSettings
     ) {
         this.settings = settings ?? { ...DEFAULT_SETTINGS };
         this.page = page;

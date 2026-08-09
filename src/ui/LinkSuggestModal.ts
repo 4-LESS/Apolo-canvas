@@ -35,7 +35,7 @@ export class LinkSuggestModal extends FuzzySuggestModal<TFile> {
         const files = this.app.vault.getFiles();
         return files.filter(file => {
             if (file.extension === 'ink') return true;
-            return !file.path.startsWith('ObsidianInk/data/');
+            return !file.path.startsWith('ApoloCanvas/data/');
         });
     }
 
